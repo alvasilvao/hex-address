@@ -4,7 +4,6 @@ import {
   Coordinates, 
   RoundTripResult, 
   SystemInfo, 
-  H3SyllableError, 
   ConversionError 
 } from './types';
 import { getConfig } from './config-loader';
@@ -26,7 +25,7 @@ export class H3SyllableSystem {
   private syllableToIndex: Map<string, number> = new Map();
   private indexToSyllable: Map<number, string> = new Map();
   private cache: Map<string, any> = new Map();
-  private hamiltonianPath: number[];
+  private hamiltonianPath: number[] = [];
   private readonly cacheMaxSize: number = 1000;
 
   constructor(configName: string = 'ascii-fqwfmd') {
@@ -106,7 +105,9 @@ export class H3SyllableSystem {
       if (this.cache.size >= this.cacheMaxSize) {
         // Remove oldest entry (FIFO)
         const firstKey = this.cache.keys().next().value;
-        this.cache.delete(firstKey);
+        if (firstKey !== undefined) {
+          this.cache.delete(firstKey);
+        }
       }
       this.cache.set(coordKey, syllableAddress);
       return syllableAddress;
@@ -145,7 +146,9 @@ export class H3SyllableSystem {
       if (this.cache.size >= this.cacheMaxSize) {
         // Remove oldest entry (FIFO)
         const firstKey = this.cache.keys().next().value;
-        this.cache.delete(firstKey);
+        if (firstKey !== undefined) {
+          this.cache.delete(firstKey);
+        }
       }
       this.cache.set(syllableAddress, result);
       return result;
@@ -248,7 +251,7 @@ export class H3SyllableSystem {
   /**
    * Create H3 system from a list of letters
    */
-  static fromLetters(letters: string[], maxConsecutive: number = 1): H3SyllableSystem {
+  static fromLetters(_letters: string[], _maxConsecutive: number = 1): H3SyllableSystem {
     // For now, use default config since we don't have dynamic config generation
     // This would need to be implemented with the config generation system
     throw new Error('Dynamic config generation not implemented. Use existing configurations.');
@@ -257,7 +260,7 @@ export class H3SyllableSystem {
   /**
    * Create H3 system with language-optimized configuration
    */
-  static suggestForLanguage(language: string = 'international', precisionMeters: number = 0.5): H3SyllableSystem {
+  static suggestForLanguage(language: string = 'international', _precisionMeters: number = 0.5): H3SyllableSystem {
     // Select configuration based on language preference
     // Note: All are ASCII character sets, optimized for different use cases
     let configName: string;

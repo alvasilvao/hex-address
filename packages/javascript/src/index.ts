@@ -38,6 +38,7 @@ export {
 
 // Convenience functions
 import { H3SyllableSystem } from './h3-syllable-system';
+import { listConfigs } from './config-loader';
 
 /**
  * Convert coordinates to syllable address using specified configuration
@@ -155,5 +156,3 @@ export const author = 'Álvaro Silva';
 export const license = 'MIT';
 export const description = 'Convert GPS coordinates to memorable hex addresses';
 
-// Re-export config functions for convenience
-export { listConfigs, getAllConfigs } from './config-loader';
