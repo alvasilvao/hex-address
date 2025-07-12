@@ -1,6 +1,6 @@
 {
   "name": "@alvarosilva/hex-address",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Convert GPS coordinates to memorable hex addresses using H3",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -29,7 +29,7 @@
     "clean": "rimraf dist",
     "prepare": "npm run build",
     "prepublishOnly": "npm run test && npm run lint && npm run build",
-    "export-configs": "python3 ../../scripts/configs/export_configs.py"
+    "export-configs": "python3 ../../scripts/configs/generate_all_configs.py"
   },
   "keywords": [
     "h3",

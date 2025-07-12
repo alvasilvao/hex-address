@@ -1,6 +1,6 @@
 {
   "name": "ascii-cxtft",
-  "description": "Basic Latin alphabet, 8 consonants, 6 vowels, 9 syllables, max 1 consecutive",
+  "description": "Basic Latin alphabet, 8 consonants, 5 vowels, 10 syllables, max 1 consecutive",
   "consonants": [
     "d",
     "f",
@@ -13,13 +13,12 @@
   ],
   "vowels": [
     "a",
-    "a",
     "e",
     "i",
     "o",
     "u"
   ],
-  "address_length": 9,
+  "address_length": 10,
   "max_consecutive": 1,
   "h3_resolution": 15,
   "metadata": {
@@ -55,7 +54,6 @@
     ],
     "selected_letters": [
       "a",
-      "a",
       "d",
       "e",
       "f",
@@ -70,6 +68,11 @@
       "u"
     ],
     "auto_generated": true,
-    "generation_method": "minimum_syllables"
+    "generation_method": "minimum_syllables",
+    "total_syllables": 40,
+    "total_combinations": 10179884495163240,
+    "h3_target_space": 579202504213046,
+    "coverage_ratio": 17.575691439722796,
+    "coverage_multiple": "17.58x"
   }
 }

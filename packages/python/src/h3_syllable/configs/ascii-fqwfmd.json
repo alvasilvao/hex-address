@@ -94,6 +94,11 @@
       "z"
     ],
     "auto_generated": true,
-    "generation_method": "minimum_syllables"
+    "generation_method": "minimum_syllables",
+    "total_syllables": 105,
+    "total_combinations": 14627258653163520,
+    "h3_target_space": 579202504213046,
+    "coverage_ratio": 25.25413572414947,
+    "coverage_multiple": "25.25x"
   }
 }
