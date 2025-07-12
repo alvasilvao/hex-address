@@ -76,8 +76,8 @@ class H3SyllableSystem:
         Initialize the H3 Syllable System with specified configuration.
 
         Args:
-            config_name: Configuration to use (e.g., "ascii-fqwfmd", "ascii-cjbnb")
-                        If None, uses default "ascii-fqwfmd" (full ASCII alphabet)
+            config_name: Configuration to use (e.g., "ascii-etmhjj", "ascii-cjbnb")
+                        If None, uses default "ascii-etmhjj" (international)
 
         Example:
             >>> system = H3SyllableSystem()  # Uses default
@@ -86,7 +86,7 @@ class H3SyllableSystem:
 
         # Use default config if none specified
         if config_name is None:
-            config_name = "ascii-fqwfmd"
+            config_name = "ascii-etmhjj"
 
         # Load configuration
         self.config = get_config(config_name)
@@ -642,7 +642,7 @@ class H3SyllableSystem:
             bool: True if address is valid, False if it doesn't exist
 
         Example:
-            >>> system = H3SyllableSystem("ascii-fqwfmd")
+            >>> system = H3SyllableSystem("ascii-etmhjj")
             >>> system.is_valid_syllable_address("je-ma-su-cu|du-ve-gu-ba")
             True
             >>> system.is_valid_syllable_address("ca-ce-va-po|ce-mi-to-cu")
@@ -717,7 +717,7 @@ class H3SyllableSystem:
             config_name = "ascii-fqwclj"  # No L (avoid L/R confusion)
         else:
             # Default to full ASCII set
-            config_name = "ascii-fqwfmd"
+            config_name = "ascii-etmhjj"
         return cls(config_name=config_name)
 
 

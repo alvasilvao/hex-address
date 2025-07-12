@@ -16,7 +16,7 @@ Example:
     >>> from hex_address import H3SyllableSystem, is_valid_syllable_address
     >>>
     >>> # Initialize system
-    >>> system = H3SyllableSystem("ascii-fqwfmd")
+    >>> system = H3SyllableSystem("ascii-etmhjj")
     >>>
     >>> # Convert coordinate to syllable address
     >>> address = system.coordinate_to_syllable(48.8566, 2.3522)

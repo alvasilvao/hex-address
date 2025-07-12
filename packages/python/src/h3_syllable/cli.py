@@ -28,8 +28,8 @@ Examples:
 
     parser.add_argument(
         "--config",
-        default="ascii-fqwfmd",
-        help="Configuration to use (default: ascii-fqwfmd)",
+        default="ascii-etmhjj",
+        help="Configuration to use (default: ascii-etmhjj)",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")

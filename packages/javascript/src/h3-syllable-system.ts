@@ -28,7 +28,7 @@ export class H3SyllableSystem {
   private hamiltonianPath: number[] = [];
   private readonly cacheMaxSize: number = 1000;
 
-  constructor(configName: string = 'ascii-sfnmh') {
+  constructor(configName: string = 'ascii-etmhjj') {
     this.configName = configName;
     this.config = getConfig(configName);
     this.initializeSyllableTables();
@@ -277,7 +277,7 @@ export class H3SyllableSystem {
         configName = 'ascii-fqwclj'; // No L (avoid L/R confusion)
         break;
       default:
-        configName = 'ascii-sfnmh'; // Default to safe config (15 consonants, 5 vowels, 8 syllables)
+        configName = 'ascii-etmhjj'; // Default to international config (16 consonants, 5 vowels, 8 syllables)
     }
     
     return new H3SyllableSystem(configName);
