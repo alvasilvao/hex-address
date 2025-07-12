@@ -32,8 +32,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/alvasilvao/hex-address"
-Documentation = "https://github.com/alvasilvao/hex-address#readme"
+Homepage = "https://hex-address-app.vercel.app/"
+Documentation = "https://hex-address-app.vercel.app/"
 Repository = "https://github.com/alvasilvao/hex-address.git"
 "Bug Tracker" = "https://github.com/alvasilvao/hex-address/issues"
 

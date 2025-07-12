@@ -1,6 +1,6 @@
 {
   "name": "@alvarosilva/hex-address",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Convert GPS coordinates to memorable hex addresses using H3",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -52,7 +52,7 @@
   "bugs": {
     "url": "https://github.com/alvasilvao/hex-address/issues"
   },
-  "homepage": "https://github.com/alvasilvao/hex-address#readme",
+  "homepage": "https://hex-address-app.vercel.app/",
   "engines": {
     "node": ">=16.0.0"
   },

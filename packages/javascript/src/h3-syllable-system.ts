@@ -409,7 +409,7 @@ export class H3SyllableSystem {
     let result = 0;
     let multiplier = 1;
     
-    // Process from right to left (least significant first)
+    // Process from fine to coarse (right to left, least significant first)
     for (let pos = this.config.h3_resolution; pos >= 1; pos--) {
       const childPos = hierarchicalArray[pos];
       if (childPos !== -1) {
@@ -444,7 +444,7 @@ export class H3SyllableSystem {
     hierarchicalArray[0] = originalBaseCell;
     remaining = remaining % baseMultiplier;
     
-    // Extract child positions from right to left
+    // Extract child positions from fine to coarse (right to left)
     for (let pos = this.config.h3_resolution; pos >= 1; pos--) {
       const childPos = remaining % 7;
       hierarchicalArray[pos] = childPos;
