@@ -55,6 +55,7 @@ hex-address --config ascii-cjbnb coordinate 48.8566 2.3522
 - **Sub-meter precision** (~0.5m) using H3 Level 15
 - **Spatially optimized** with perfect Hamiltonian path (100% adjacency)
 - **Memorable addresses** using pronounceable syllables
+- **Geographic similarity** - nearby locations share syllable prefixes like postal codes
 - **Perfect reversibility** for all real coordinates
 - **Dynamic formatting** with pipe separators for readability
 - **Multiple configurations** optimized for different use cases
@@ -94,7 +95,21 @@ print(list_available_configs())
 - **Coverage**: 122 × 7^15 = 579,202,504,213,046 H3 positions
 - **Constraint**: max_consecutive = 1 (no adjacent identical syllables)
 - **Spatial optimization**: 100% adjacency through Hamiltonian path
+- **Geographic ordering**: Syllables ordered coarse-to-fine (like postal codes)
 - **Performance**: ~6,700 conversions/second
+
+### Geographic Similarity
+
+Nearby locations share syllable prefixes, making addresses intuitive:
+
+```python
+# Coordinates ~75m apart in Paris
+system.coordinate_to_syllable(48.8566, 2.3522)  # "bi-me-mu-mu|hi-vu-ka-ju"
+system.coordinate_to_syllable(48.8567, 2.3523)  # "bi-me-mu-mu|hi-vu-ne-go"
+                                                 #  ^^^^^^^^^^^^^^^ shared prefix (75%)
+```
+
+This works because syllables represent geographic hierarchy from coarse (continent/country) to fine (meter-level), similar to how postal codes work.
 
 ## 📖 API Reference
 

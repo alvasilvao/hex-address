@@ -1,6 +1,6 @@
 {
   "name": "@alvarosilva/hex-address",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Convert GPS coordinates to memorable hex addresses using H3",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

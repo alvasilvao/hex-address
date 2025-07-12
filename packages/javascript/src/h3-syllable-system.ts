@@ -456,6 +456,7 @@ export class H3SyllableSystem {
 
   /**
    * Convert Integer Index to Syllable Address
+   * Orders syllables from coarse to fine geography (most significant first)
    */
   private integerIndexToSyllableAddress(integerIndex: number): string {
     const totalSyllables = this.config.consonants.length * this.config.vowels.length;
@@ -468,14 +469,15 @@ export class H3SyllableSystem {
     const syllables: string[] = [];
     let remaining = integerIndex;
     
-    // Simple base conversion
+    // Base conversion with geographic ordering (most significant first)
     for (let pos = 0; pos < this.config.address_length; pos++) {
       const syllableIdx = remaining % totalSyllables;
       const syllable = this.indexToSyllable.get(syllableIdx);
       if (!syllable) {
         throw new Error(`Invalid syllable index: ${syllableIdx}`);
       }
-      syllables.push(syllable);
+      // Add to front so coarse geography appears first
+      syllables.unshift(syllable);
       remaining = Math.floor(remaining / totalSyllables);
     }
     
@@ -518,6 +520,7 @@ export class H3SyllableSystem {
 
   /**
    * Convert Syllable Address to Integer Index
+   * Processes syllables from coarse to fine geography (most significant first)
    */
   private syllableAddressToIntegerIndex(syllableAddress: string): number {
     const syllables = syllableAddress.toLowerCase().replace(/\|/g, '-').split('-');
@@ -529,9 +532,9 @@ export class H3SyllableSystem {
     const totalSyllables = this.config.consonants.length * this.config.vowels.length;
     let integerValue = 0;
     
-    // Process syllables in same order as forward conversion
+    // Process syllables from right to left (fine to coarse) to match the reversed ordering
     for (let pos = 0; pos < syllables.length; pos++) {
-      const syllable = syllables[pos];
+      const syllable = syllables[syllables.length - 1 - pos]; // Process from right to left
       const syllableIndex = this.syllableToIndex.get(syllable);
       if (syllableIndex === undefined) {
         throw new Error(`Unknown syllable: ${syllable}`);
