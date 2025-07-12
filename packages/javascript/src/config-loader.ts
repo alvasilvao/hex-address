@@ -1,74 +1,60 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import { SyllableConfig } from './types';
 
+// Import all configurations statically for browser compatibility
+import asciiEtmhjjConfig from './configs/ascii-etmhjj.json';
+import asciiBowotConfig from './configs/ascii-bowoat.json';
+import asciiGteupConfig from './configs/ascii-gteup.json';
+import asciiSfnmhConfig from './configs/ascii-sfnmh.json';
+import asciiBwihfConfig from './configs/ascii-bwihf.json';
+import asciiCxtftConfig from './configs/ascii-cxtft.json';
+import asciiGlqvbConfig from './configs/ascii-glqvb.json';
+import asciiFqwfmdConfig from './configs/ascii-fqwfmd.json';
+
 /**
- * Loads configurations from JSON files
+ * Pre-loaded configurations for browser and Node.js compatibility
+ */
+const BUNDLED_CONFIGS: Record<string, SyllableConfig> = {
+  'ascii-etmhjj': asciiEtmhjjConfig as SyllableConfig,
+  'ascii-bowoat': asciiBowotConfig as SyllableConfig,
+  'ascii-gteup': asciiGteupConfig as SyllableConfig,
+  'ascii-sfnmh': asciiSfnmhConfig as SyllableConfig,
+  'ascii-bwihf': asciiBwihfConfig as SyllableConfig,
+  'ascii-cxtft': asciiCxtftConfig as SyllableConfig,
+  'ascii-glqvb': asciiGlqvbConfig as SyllableConfig,
+  'ascii-fqwfmd': asciiFqwfmdConfig as SyllableConfig,
+};
+
+/**
+ * Browser-compatible configuration loader
+ * Configurations are bundled at build time for universal compatibility
  */
 export class ConfigLoader {
   private configs: Map<string, SyllableConfig> = new Map();
-  private configDir: string;
 
-  constructor(configDir?: string) {
-    // Default to shared configs directory at repository root
-    this.configDir = configDir || path.join(__dirname, '..', '..', '..', 'configs');
-    this.loadAllConfigs();
+  constructor() {
+    this.loadBundledConfigs();
   }
 
   /**
-   * Load all JSON configuration files
+   * Load bundled configurations
    */
-  private loadAllConfigs(): void {
-    try {
-      if (!fs.existsSync(this.configDir)) {
-        throw new Error(`Config directory not found: ${this.configDir}`);
+  private loadBundledConfigs(): void {
+    for (const [name, configData] of Object.entries(BUNDLED_CONFIGS)) {
+      try {
+        // Create config object with computed properties
+        const config: SyllableConfig = {
+          ...configData,
+          h3_resolution: configData.h3_resolution || 15
+        };
+
+        this.configs.set(name, config);
+      } catch (error) {
+        console.warn(`Failed to load bundled config ${name}:`, error);
       }
+    }
 
-      const files = fs.readdirSync(this.configDir);
-      const jsonFiles = files.filter(file => file.endsWith('.json'));
-
-      for (const file of jsonFiles) {
-        try {
-          // Validate filename to prevent path traversal
-          if (!/^[a-zA-Z0-9_-]+\.json$/.test(file)) {
-            console.warn(`Skipping invalid config file name: ${file}`);
-            continue;
-          }
-          
-          const configPath = path.join(this.configDir, file);
-          
-          // Check file size limit (1MB max)
-          const stats = fs.statSync(configPath);
-          if (stats.size > 1024 * 1024) {
-            console.warn(`Skipping oversized config file: ${file}`);
-            continue;
-          }
-          
-          const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-          
-          // Create config object with computed properties
-          const config: SyllableConfig = {
-            ...configData,
-            h3_resolution: configData.h3_resolution || 15
-          };
-
-          // Use filename without extension as config name
-          const configName = path.basename(file, '.json');
-          this.configs.set(configName, config);
-        } catch (error) {
-          if (error instanceof SyntaxError) {
-            console.warn(`Invalid JSON in config file ${file}`);
-          } else {
-            console.warn(`Failed to load config file ${file}`);
-          }
-        }
-      }
-
-      if (this.configs.size === 0) {
-        throw new Error('No valid configuration files found');
-      }
-    } catch (error) {
-      throw new Error(`Failed to load configurations: ${error}`);
+    if (this.configs.size === 0) {
+      throw new Error('No valid configuration files found');
     }
   }
 
@@ -76,7 +62,7 @@ export class ConfigLoader {
    * Get a configuration by name
    */
   getConfig(configName: string): SyllableConfig {
-    // Validate config name format to prevent path traversal
+    // Validate config name format to prevent injection
     if (!/^[a-zA-Z0-9_-]+$/.test(configName)) {
       throw new Error(`Invalid configuration name format: ${configName}`);
     }
@@ -101,6 +87,30 @@ export class ConfigLoader {
    */
   listConfigs(): string[] {
     return Array.from(this.configs.keys());
+  }
+
+  /**
+   * Get configuration metadata
+   */
+  getConfigInfo(configName: string): {
+    name: string;
+    description: string;
+    consonantsCount: number;
+    vowelsCount: number;
+    addressLength: number;
+    totalCombinations?: number;
+    coverageRatio?: number;
+  } {
+    const config = this.getConfig(configName);
+    return {
+      name: config.name,
+      description: config.description,
+      consonantsCount: config.consonants.length,
+      vowelsCount: config.vowels.length,
+      addressLength: config.address_length,
+      totalCombinations: config.metadata?.total_combinations,
+      coverageRatio: config.metadata?.coverage_ratio,
+    };
   }
 }
 
@@ -135,4 +145,14 @@ export function listConfigs(): string[] {
     globalConfigLoader = new ConfigLoader();
   }
   return globalConfigLoader.listConfigs();
+}
+
+/**
+ * Get configuration metadata using the global loader
+ */
+export function getConfigInfo(configName: string) {
+  if (!globalConfigLoader) {
+    globalConfigLoader = new ConfigLoader();
+  }
+  return globalConfigLoader.getConfigInfo(configName);
 }

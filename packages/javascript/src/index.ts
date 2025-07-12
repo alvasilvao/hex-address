@@ -8,7 +8,7 @@
  * import { H3SyllableSystem, isValidSyllableAddress } from 'hex-address';
  * 
  * // Initialize system
- * const system = new H3SyllableSystem('ascii-fqwfmd');
+ * const system = new H3SyllableSystem('ascii-sfnmh');
  * 
  * // Convert coordinates to syllable address
  * const address = system.coordinateToSyllable(48.8566, 2.3522);
@@ -46,7 +46,7 @@ import { listConfigs } from './config-loader';
 export function coordinateToSyllable(
   latitude: number,
   longitude: number,
-  configName: string = 'ascii-fqwfmd'
+  configName: string = 'ascii-sfnmh'
 ): string {
   const system = new H3SyllableSystem(configName);
   return system.coordinateToSyllable(latitude, longitude);
@@ -57,7 +57,7 @@ export function coordinateToSyllable(
  */
 export function syllableToCoordinate(
   syllableAddress: string,
-  configName: string = 'ascii-fqwfmd'
+  configName: string = 'ascii-sfnmh'
 ): [number, number] {
   const system = new H3SyllableSystem(configName);
   return system.syllableToCoordinate(syllableAddress);
@@ -71,7 +71,7 @@ export function syllableToCoordinate(
  */
 export function isValidSyllableAddress(
   syllableAddress: string,
-  configName: string = 'ascii-fqwfmd'
+  configName: string = 'ascii-sfnmh'
 ): boolean {
   const system = new H3SyllableSystem(configName);
   return system.isValidSyllableAddress(syllableAddress);

@@ -1,4 +1,21 @@
 /**
+ * Configuration metadata
+ */
+export interface ConfigMetadata {
+  alphabet: string;
+  base26_identifier: string;
+  binary_array: number[];
+  selected_letters: string[];
+  auto_generated: boolean;
+  generation_method: string;
+  total_syllables: number;
+  total_combinations: number;
+  h3_target_space: number;
+  coverage_ratio: number;
+  coverage_multiple: string;
+}
+
+/**
  * Configuration for syllable system
  */
 export interface SyllableConfig {
@@ -9,6 +26,7 @@ export interface SyllableConfig {
   address_length: number;
   max_consecutive: number;
   h3_resolution: number;
+  metadata?: ConfigMetadata;
 }
 
 /**

@@ -28,7 +28,7 @@ export class H3SyllableSystem {
   private hamiltonianPath: number[] = [];
   private readonly cacheMaxSize: number = 1000;
 
-  constructor(configName: string = 'ascii-fqwfmd') {
+  constructor(configName: string = 'ascii-sfnmh') {
     this.configName = configName;
     this.config = getConfig(configName);
     this.initializeSyllableTables();
@@ -156,7 +156,8 @@ export class H3SyllableSystem {
       if (error instanceof ConversionError) {
         throw error;
       }
-      throw new ConversionError(`Syllable conversion failed`);
+      console.error('Syllable conversion error:', error);
+      throw new ConversionError(`Syllable conversion failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -276,7 +277,7 @@ export class H3SyllableSystem {
         configName = 'ascii-fqwclj'; // No L (avoid L/R confusion)
         break;
       default:
-        configName = 'ascii-fqwfmd'; // Default to full ASCII set
+        configName = 'ascii-sfnmh'; // Default to safe config (15 consonants, 5 vowels, 8 syllables)
     }
     
     return new H3SyllableSystem(configName);
@@ -344,16 +345,47 @@ export class H3SyllableSystem {
   private hierarchicalArrayToH3CellId(hierarchicalArray: number[]): string {
     const baseCellNumber = hierarchicalArray[0];
     
-    // Get base cell H3 index
-    let currentH3 = latLngToCell(0, 0, 0); // This gets a valid base cell
-    const allBaseCells = cellToChildren(currentH3, 0);
-    const baseCell = allBaseCells.find(cell => getBaseCellNumber(cell) === baseCellNumber);
+    // Pre-computed mapping of base cell numbers to H3 indices
+    const BASE_CELL_H3_INDICES: Record<number, string> = {
+      0: "8001fffffffffff", 1: "8003fffffffffff", 2: "8005fffffffffff", 3: "8007fffffffffff",
+      4: "8009fffffffffff", 5: "800bfffffffffff", 6: "800dfffffffffff", 7: "800ffffffffffff",
+      8: "8011fffffffffff", 9: "8013fffffffffff", 10: "8015fffffffffff", 11: "8017fffffffffff",
+      12: "8019fffffffffff", 13: "801bfffffffffff", 14: "801dfffffffffff", 15: "801ffffffffffff",
+      16: "8021fffffffffff", 17: "8023fffffffffff", 18: "8025fffffffffff", 19: "8027fffffffffff",
+      20: "8029fffffffffff", 21: "802bfffffffffff", 22: "802dfffffffffff", 23: "802ffffffffffff",
+      24: "8031fffffffffff", 25: "8033fffffffffff", 26: "8035fffffffffff", 27: "8037fffffffffff",
+      28: "8039fffffffffff", 29: "803bfffffffffff", 30: "803dfffffffffff", 31: "803ffffffffffff",
+      32: "8041fffffffffff", 33: "8043fffffffffff", 34: "8045fffffffffff", 35: "8047fffffffffff",
+      36: "8049fffffffffff", 37: "804bfffffffffff", 38: "804dfffffffffff", 39: "804ffffffffffff",
+      40: "8051fffffffffff", 41: "8053fffffffffff", 42: "8055fffffffffff", 43: "8057fffffffffff",
+      44: "8059fffffffffff", 45: "805bfffffffffff", 46: "805dfffffffffff", 47: "805ffffffffffff",
+      48: "8061fffffffffff", 49: "8063fffffffffff", 50: "8065fffffffffff", 51: "8067fffffffffff",
+      52: "8069fffffffffff", 53: "806bfffffffffff", 54: "806dfffffffffff", 55: "806ffffffffffff",
+      56: "8071fffffffffff", 57: "8073fffffffffff", 58: "8075fffffffffff", 59: "8077fffffffffff",
+      60: "8079fffffffffff", 61: "807bfffffffffff", 62: "807dfffffffffff", 63: "807ffffffffffff",
+      64: "8081fffffffffff", 65: "8083fffffffffff", 66: "8085fffffffffff", 67: "8087fffffffffff",
+      68: "8089fffffffffff", 69: "808bfffffffffff", 70: "808dfffffffffff", 71: "808ffffffffffff",
+      72: "8091fffffffffff", 73: "8093fffffffffff", 74: "8095fffffffffff", 75: "8097fffffffffff",
+      76: "8099fffffffffff", 77: "809bfffffffffff", 78: "809dfffffffffff", 79: "809ffffffffffff",
+      80: "80a1fffffffffff", 81: "80a3fffffffffff", 82: "80a5fffffffffff", 83: "80a7fffffffffff",
+      84: "80a9fffffffffff", 85: "80abfffffffffff", 86: "80adfffffffffff", 87: "80affffffffffff",
+      88: "80b1fffffffffff", 89: "80b3fffffffffff", 90: "80b5fffffffffff", 91: "80b7fffffffffff",
+      92: "80b9fffffffffff", 93: "80bbfffffffffff", 94: "80bdfffffffffff", 95: "80bffffffffffff",
+      96: "80c1fffffffffff", 97: "80c3fffffffffff", 98: "80c5fffffffffff", 99: "80c7fffffffffff",
+      100: "80c9fffffffffff", 101: "80cbfffffffffff", 102: "80cdfffffffffff", 103: "80cffffffffffff",
+      104: "80d1fffffffffff", 105: "80d3fffffffffff", 106: "80d5fffffffffff", 107: "80d7fffffffffff",
+      108: "80d9fffffffffff", 109: "80dbfffffffffff", 110: "80ddfffffffffff", 111: "80dffffffffffff",
+      112: "80e1fffffffffff", 113: "80e3fffffffffff", 114: "80e5fffffffffff", 115: "80e7fffffffffff",
+      116: "80e9fffffffffff", 117: "80ebfffffffffff", 118: "80edfffffffffff", 119: "80effffffffffff",
+      120: "80f1fffffffffff", 121: "80f3fffffffffff"
+    };
     
+    const baseCell = BASE_CELL_H3_INDICES[baseCellNumber];
     if (!baseCell) {
-      throw new Error(`Could not find base cell with number ${baseCellNumber}`);
+      throw new Error(`Invalid base cell number: ${baseCellNumber}. Must be 0-121.`);
     }
     
-    currentH3 = baseCell;
+    let currentH3 = baseCell;
     
     // Navigate through child positions
     for (let res = 1; res <= this.config.h3_resolution; res++) {
@@ -496,16 +528,17 @@ export class H3SyllableSystem {
     
     const totalSyllables = this.config.consonants.length * this.config.vowels.length;
     let integerValue = 0;
-    let multiplier = 1;
     
-    for (const syllable of syllables) {
+    // Process syllables in same order as forward conversion
+    for (let pos = 0; pos < syllables.length; pos++) {
+      const syllable = syllables[pos];
       const syllableIndex = this.syllableToIndex.get(syllable);
       if (syllableIndex === undefined) {
         throw new Error(`Unknown syllable: ${syllable}`);
       }
       
-      integerValue += syllableIndex * multiplier;
-      multiplier *= totalSyllables;
+      // Use the same base conversion logic as forward direction
+      integerValue += syllableIndex * (totalSyllables ** pos);
     }
     
     return integerValue;

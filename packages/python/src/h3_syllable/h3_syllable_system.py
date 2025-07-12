@@ -428,17 +428,16 @@ class H3SyllableSystem:
         if len(syllables) != self.address_length:
             raise ValueError(f"Address must have {self.address_length} syllables")
         
-        # Convert to integer
+        # Convert to integer using same logic as forward conversion
         integer_value = 0
-        multiplier = 1
         
-        for syllable in syllables:
+        for pos, syllable in enumerate(syllables):
             if syllable.lower() not in self.syllable_to_index:
                 raise ValueError(f"Unknown syllable: {syllable}")
             
             syllable_idx = self.syllable_to_index[syllable.lower()]
-            integer_value += syllable_idx * multiplier
-            multiplier *= self.total_syllables
+            # Use the same base conversion logic as forward direction
+            integer_value += syllable_idx * (self.total_syllables ** pos)
         
         return integer_value
     
