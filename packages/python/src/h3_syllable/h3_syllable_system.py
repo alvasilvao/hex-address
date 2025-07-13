@@ -98,17 +98,17 @@ class H3SyllableSystem:
         Initialize the H3 Syllable System with specified configuration.
 
         Args:
-            config_name: Configuration to use (e.g., "ascii-etmhjj", "ascii-cjbnb")
-                        If None, uses default "ascii-etmhjj" (international)
+            config_name: Configuration to use (e.g., "ascii-dnqqwn")
+                        If None, uses default "ascii-dnqqwn" (international standard)
 
         Example:
             >>> system = H3SyllableSystem()  # Uses default
-            >>> system = H3SyllableSystem('ascii-cjbnb')  # Minimal balanced
+            >>> system = H3SyllableSystem('ascii-dnqqwn')  # Explicit international
         """
 
         # Use default config if none specified
         if config_name is None:
-            config_name = "ascii-etmhjj"
+            config_name = "ascii-dnqqwn"
 
         # Load configuration
         self.config = get_config(config_name)
@@ -679,13 +679,13 @@ class H3SyllableSystem:
         """
         try:
             # Parse partial address and validate format
-            partial_syllables = self._parse_partial_address(partial_address)
+            parsed = self._parse_partial_address(partial_address)
             
             # Calculate address range (min and max complete addresses)
-            address_range = self._calculate_address_range(partial_syllables)
+            address_range = self._calculate_address_range(parsed)
             
             # Find valid addresses within the range, with smart fallback if initial addresses are invalid
-            valid_range = self._find_valid_address_range(address_range["min_address"], address_range["max_address"], partial_syllables)
+            valid_range = self._find_valid_address_range(address_range["min_address"], address_range["max_address"], parsed['complete_syllables'])
             
             # Convert both addresses to coordinates
             min_coords = self.syllable_to_coordinate(valid_range["min_address"])
@@ -695,17 +695,20 @@ class H3SyllableSystem:
             bounds = self._calculate_geographic_bounds(min_coords, max_coords)
             center = self._calculate_center(min_coords, max_coords)
             area_km2 = self._calculate_area_km2(bounds)
-            confidence = self._calculate_confidence(len(partial_syllables))
+            confidence = self._calculate_confidence(parsed)
             
             # Get suggested refinements (next possible syllables)
-            suggested_refinements = self._get_suggested_refinements(partial_syllables)
+            suggested_refinements = self._get_suggested_refinements(parsed)
+            
+            # Calculate completeness level
+            completeness_level = len(parsed['complete_syllables']) + (0.5 if parsed['partial_consonant'] else 0)
             
             return PartialLocationEstimate(
                 center_coordinate=center,
                 bounds=bounds,
                 confidence=confidence,
                 estimated_area_km2=area_km2,
-                completeness_level=len(partial_syllables),
+                completeness_level=completeness_level,
                 suggested_refinements=suggested_refinements
             )
         except Exception as e:
@@ -773,12 +776,12 @@ class H3SyllableSystem:
         elif language == "japanese":
             config_name = "ascii-fqwclj"  # No L (avoid L/R confusion)
         else:
-            # Default to full ASCII set
-            config_name = "ascii-etmhjj"
+            # Default to international standard
+            config_name = "ascii-dnqqwn"
         return cls(config_name=config_name)
 
-    def _parse_partial_address(self, partial_address: str) -> List[str]:
-        """Parse partial address into syllables array."""
+    def _parse_partial_address(self, partial_address: str) -> Dict[str, any]:
+        """Parse partial address into syllables array and detect partial consonants."""
         if not partial_address or partial_address.strip() == "":
             raise ConversionError("Partial address cannot be empty")
 
@@ -789,21 +792,45 @@ class H3SyllableSystem:
         if len(syllables) == 0:
             raise ConversionError("No valid syllables found in partial address")
 
-        if len(syllables) >= self.address_length:
-            raise ConversionError(f"Partial address cannot have {len(syllables)} or more syllables (max: {self.address_length - 1})")
+        # Check if we have a partial syllable (single character at the end)
+        partial_consonant = None
+        complete_syllables = syllables
+        
+        last_syllable = syllables[-1]
+        if len(last_syllable) == 1:
+            # We have a partial syllable - validate it's a consonant
+            if last_syllable not in self.consonants:
+                raise ConversionError(f"Invalid partial consonant: {last_syllable}. Must be one of: {', '.join(self.consonants)}")
+            partial_consonant = last_syllable
+            complete_syllables = syllables[:-1]  # Remove the partial syllable from complete ones
+            
+            # Special case: if only a single consonant was provided with no complete syllables
+            if len(complete_syllables) == 0:
+                raise ConversionError(f"Partial address must contain at least one complete syllable. '{partial_address}' only contains a partial consonant.")
 
-        # Validate each syllable
-        for syllable in syllables:
+        total_syllables = len(complete_syllables) + (1 if partial_consonant else 0)
+        if total_syllables >= self.address_length:
+            raise ConversionError(f"Partial address cannot have {total_syllables} or more syllables (max: {self.address_length - 1})")
+
+        # Validate each complete syllable
+        for syllable in complete_syllables:
             if syllable not in self.syllable_to_index:
                 raise ConversionError(f"Invalid syllable: {syllable}")
 
-        return syllables
+        return {
+            'complete_syllables': complete_syllables,
+            'partial_consonant': partial_consonant
+        }
 
-    def _calculate_address_range(self, partial_syllables: List[str]) -> Dict[str, str]:
+    def _calculate_address_range(self, parsed: Dict[str, any]) -> Dict[str, str]:
         """Calculate the range of complete addresses for a partial address."""
-        remaining_syllables = self.address_length - len(partial_syllables)
+        complete_syllables = parsed['complete_syllables']
+        partial_consonant = parsed['partial_consonant']
         
-        if remaining_syllables <= 0:
+        total_syllables = len(complete_syllables) + (1 if partial_consonant else 0)
+        remaining_syllables = self.address_length - total_syllables
+        
+        if remaining_syllables < 0:
             raise ConversionError("Partial address is already complete or too long")
 
         # Get min and max syllables for padding
@@ -811,15 +838,32 @@ class H3SyllableSystem:
         min_syllable = min_max["min_syllable"]
         max_syllable = min_max["max_syllable"]
         
-        # Create min address: pad with minimum syllables
-        min_syllables = partial_syllables.copy()
-        for i in range(remaining_syllables):
-            min_syllables.append(min_syllable)
-        
-        # Create max address: pad with maximum syllables
-        max_syllables = partial_syllables.copy()
-        for i in range(remaining_syllables):
-            max_syllables.append(max_syllable)
+        if partial_consonant:
+            # Handle partial consonant: create range from consonant+firstVowel to consonant+lastVowel
+            first_vowel = self.vowels[0]  # 'a'
+            last_vowel = self.vowels[-1]  # 'u'
+            
+            min_partial_syllable = partial_consonant + first_vowel
+            max_partial_syllable = partial_consonant + last_vowel
+            
+            # Create min address: complete syllables + min partial syllable + padding
+            min_syllables = complete_syllables.copy() + [min_partial_syllable]
+            for i in range(remaining_syllables):
+                min_syllables.append(min_syllable)
+            
+            # Create max address: complete syllables + max partial syllable + padding
+            max_syllables = complete_syllables.copy() + [max_partial_syllable]
+            for i in range(remaining_syllables):
+                max_syllables.append(max_syllable)
+        else:
+            # No partial consonant, handle normally
+            min_syllables = complete_syllables.copy()
+            for i in range(remaining_syllables):
+                min_syllables.append(min_syllable)
+            
+            max_syllables = complete_syllables.copy()
+            for i in range(remaining_syllables):
+                max_syllables.append(max_syllable)
         
         return {
             "min_address": self._format_syllable_address(min_syllables),
@@ -868,21 +912,34 @@ class H3SyllableSystem:
         
         return lat_km * lon_km
 
-    def _calculate_confidence(self, completeness_level: int) -> float:
+    def _calculate_confidence(self, parsed: Dict[str, any]) -> float:
         """Calculate confidence score based on completeness level."""
+        # Calculate effective completeness level
+        # Complete syllables count as 1.0, partial consonants as 0.5
+        completeness_level = len(parsed['complete_syllables']) + (0.5 if parsed['partial_consonant'] else 0)
+        
         # Higher completeness = higher confidence
         # Scale from 0.1 (1 syllable) to 0.95 (7 syllables for 8-syllable addresses)
         max_level = self.address_length - 1
         confidence = 0.1 + (completeness_level / max_level) * 0.85
         return min(0.95, max(0.1, confidence))
 
-    def _get_suggested_refinements(self, partial_syllables: List[str]) -> List[str]:
-        """Get suggested refinements (next possible syllables)."""
-        if len(partial_syllables) >= self.address_length - 1:
+    def _get_suggested_refinements(self, parsed: Dict[str, any]) -> List[str]:
+        """Get suggested refinements (next possible syllables or vowels)."""
+        complete_syllables = parsed['complete_syllables']
+        partial_consonant = parsed['partial_consonant']
+        
+        total_syllables = len(complete_syllables) + (1 if partial_consonant else 0)
+        
+        if total_syllables >= self.address_length - 1:
             return []  # Already almost complete, no meaningful refinements
         
-        # Return all available syllables as potential next options
-        return sorted(self.syllable_to_index.keys())
+        if partial_consonant:
+            # For partial consonants, suggest possible vowels to complete the syllable
+            return sorted([partial_consonant + vowel for vowel in self.vowels])
+        else:
+            # For complete syllables, suggest all available syllables as potential next options
+            return sorted(self.syllable_to_index.keys())
 
     def _find_valid_address_range(self, min_address: str, max_address: str, partial_syllables: List[str]) -> Dict[str, str]:
         """Find valid address range with smart fallback when min/max addresses are invalid."""
@@ -919,7 +976,7 @@ class H3SyllableSystem:
         if len(partial_syllables) > 1:
             print(f"Warning: Address range for '{''.join(partial_syllables)}' is unmappable, falling back to shorter prefix")
             shorter_partial = partial_syllables[:-1]
-            fallback_range = self._calculate_address_range(shorter_partial)
+            fallback_range = self._calculate_address_range({'complete_syllables': shorter_partial, 'partial_consonant': None})
             return self._find_valid_address_range(fallback_range["min_address"], fallback_range["max_address"], shorter_partial)
         
         # Last resort: throw error with helpful message

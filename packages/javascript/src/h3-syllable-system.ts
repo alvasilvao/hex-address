@@ -30,7 +30,7 @@ export class H3SyllableSystem {
   private hamiltonianPath: number[] = [];
   private readonly cacheMaxSize: number = 1000;
 
-  constructor(configName: string = 'ascii-etmhjj') {
+  constructor(configName: string = 'ascii-dnqqwn') {
     this.configName = configName;
     this.config = getConfig(configName);
     this.initializeSyllableTables();
@@ -181,13 +181,13 @@ export class H3SyllableSystem {
   estimateLocationFromPartial(partialAddress: string): PartialLocationEstimate {
     try {
       // Parse partial address and validate format
-      const partialSyllables = this.parsePartialAddress(partialAddress);
+      const parsed = this.parsePartialAddress(partialAddress);
       
       // Calculate address range (min and max complete addresses)
-      const addressRange = this.calculateAddressRange(partialSyllables);
+      const addressRange = this.calculateAddressRange(parsed);
       
       // Find valid addresses within the range, with smart fallback if initial addresses are invalid
-      const validRange = this.findValidAddressRange(addressRange.minAddress, addressRange.maxAddress, partialSyllables);
+      const validRange = this.findValidAddressRange(addressRange.minAddress, addressRange.maxAddress, parsed.completeSyllables);
       
       // Convert both addresses to coordinates
       const minCoords = this.syllableToCoordinate(validRange.minAddress);
@@ -197,17 +197,19 @@ export class H3SyllableSystem {
       const bounds = this.calculateGeographicBounds(minCoords, maxCoords);
       const center = this.calculateCenter(minCoords, maxCoords);
       const areaKm2 = this.calculateAreaKm2(bounds);
-      const confidence = this.calculateConfidence(partialSyllables.length);
+      const confidence = this.calculateConfidence(parsed);
       
       // Get suggested refinements (next possible syllables)
-      const suggestedRefinements = this.getSuggestedRefinements(partialSyllables);
+      const suggestedRefinements = this.getSuggestedRefinements(parsed);
+      
+      const completenessLevel = parsed.completeSyllables.length + (parsed.partialConsonant ? 0.5 : 0);
       
       return {
         centerCoordinate: center,
         bounds,
         confidence,
         estimatedAreaKm2: areaKm2,
-        completenessLevel: partialSyllables.length,
+        completenessLevel,
         suggestedRefinements
       };
     } catch (error) {
@@ -322,7 +324,7 @@ export class H3SyllableSystem {
         configName = 'ascii-fqwclj'; // No L (avoid L/R confusion)
         break;
       default:
-        configName = 'ascii-etmhjj'; // Default to international config (16 consonants, 5 vowels, 8 syllables)
+        configName = 'ascii-dnqqwn'; // Default to international config (16 consonants, 5 vowels, 8 syllables)
     }
     
     return new H3SyllableSystem(configName);
@@ -574,7 +576,7 @@ export class H3SyllableSystem {
   /**
    * Parse partial address into syllables array
    */
-  private parsePartialAddress(partialAddress: string): string[] {
+  private parsePartialAddress(partialAddress: string): { completeSyllables: string[]; partialConsonant?: string } {
     if (!partialAddress || partialAddress.trim() === '') {
       throw new ConversionError('Partial address cannot be empty');
     }
@@ -591,43 +593,86 @@ export class H3SyllableSystem {
       throw new ConversionError('No valid syllables found in partial address');
     }
 
-    if (syllables.length >= this.config.address_length) {
-      throw new ConversionError(`Partial address cannot have ${syllables.length} or more syllables (max: ${this.config.address_length - 1})`);
+    // Check if we have a partial syllable (single character at the end)
+    let partialConsonant: string | undefined;
+    let completeSyllables = syllables;
+    
+    const lastSyllable = syllables[syllables.length - 1];
+    if (lastSyllable.length === 1) {
+      // We have a partial syllable - validate it's a consonant
+      if (!this.config.consonants.includes(lastSyllable)) {
+        throw new ConversionError(`Invalid partial consonant: ${lastSyllable}. Must be one of: ${this.config.consonants.join(', ')}`);
+      }
+      partialConsonant = lastSyllable;
+      completeSyllables = syllables.slice(0, -1); // Remove the partial syllable from complete ones
+      
+      // Special case: if only a single consonant was provided with no complete syllables
+      if (completeSyllables.length === 0) {
+        throw new ConversionError(`Partial address must contain at least one complete syllable. '${partialAddress}' only contains a partial consonant.`);
+      }
     }
 
-    // Validate each syllable
-    for (const syllable of syllables) {
+    if (completeSyllables.length + (partialConsonant ? 1 : 0) >= this.config.address_length) {
+      throw new ConversionError(`Partial address cannot have ${completeSyllables.length + (partialConsonant ? 1 : 0)} or more syllables (max: ${this.config.address_length - 1})`);
+    }
+
+    // Validate each complete syllable
+    for (const syllable of completeSyllables) {
       if (!this.syllableToIndex.has(syllable)) {
         throw new ConversionError(`Invalid syllable: ${syllable}`);
       }
     }
 
-    return syllables;
+    return { completeSyllables, partialConsonant };
   }
 
   /**
    * Calculate the range of complete addresses for a partial address
    */
-  private calculateAddressRange(partialSyllables: string[]): { minAddress: string; maxAddress: string } {
-    const remainingSyllables = this.config.address_length - partialSyllables.length;
+  private calculateAddressRange(parsed: { completeSyllables: string[]; partialConsonant?: string }): { minAddress: string; maxAddress: string } {
+    const totalSyllables = parsed.completeSyllables.length + (parsed.partialConsonant ? 1 : 0);
+    const remainingSyllables = this.config.address_length - totalSyllables;
     
-    if (remainingSyllables <= 0) {
+    if (remainingSyllables < 0) {
       throw new ConversionError('Partial address is already complete or too long');
     }
 
     // Get min and max syllables for padding
     const { minSyllable, maxSyllable } = this.getMinMaxSyllables();
     
-    // Create min address: pad with minimum syllables
-    const minSyllables = [...partialSyllables];
-    for (let i = 0; i < remainingSyllables; i++) {
-      minSyllables.push(minSyllable);
-    }
+    let minSyllables: string[];
+    let maxSyllables: string[];
     
-    // Create max address: pad with maximum syllables
-    const maxSyllables = [...partialSyllables];
-    for (let i = 0; i < remainingSyllables; i++) {
-      maxSyllables.push(maxSyllable);
+    if (parsed.partialConsonant) {
+      // Handle partial consonant: create range from consonant+firstVowel to consonant+lastVowel
+      const firstVowel = this.config.vowels[0]; // 'a'
+      const lastVowel = this.config.vowels[this.config.vowels.length - 1]; // 'u'
+      
+      const minPartialSyllable = parsed.partialConsonant + firstVowel;
+      const maxPartialSyllable = parsed.partialConsonant + lastVowel;
+      
+      // Create min address: complete syllables + min partial syllable + padding
+      minSyllables = [...parsed.completeSyllables, minPartialSyllable];
+      for (let i = 0; i < remainingSyllables; i++) {
+        minSyllables.push(minSyllable);
+      }
+      
+      // Create max address: complete syllables + max partial syllable + padding
+      maxSyllables = [...parsed.completeSyllables, maxPartialSyllable];
+      for (let i = 0; i < remainingSyllables; i++) {
+        maxSyllables.push(maxSyllable);
+      }
+    } else {
+      // No partial consonant, handle normally
+      minSyllables = [...parsed.completeSyllables];
+      for (let i = 0; i < remainingSyllables; i++) {
+        minSyllables.push(minSyllable);
+      }
+      
+      maxSyllables = [...parsed.completeSyllables];
+      for (let i = 0; i < remainingSyllables; i++) {
+        maxSyllables.push(maxSyllable);
+      }
     }
     
     return {
@@ -693,7 +738,11 @@ export class H3SyllableSystem {
   /**
    * Calculate confidence score based on completeness level
    */
-  private calculateConfidence(completenessLevel: number): number {
+  private calculateConfidence(parsed: { completeSyllables: string[]; partialConsonant?: string }): number {
+    // Calculate effective completeness level
+    // Complete syllables count as 1.0, partial consonants as 0.5
+    const completenessLevel = parsed.completeSyllables.length + (parsed.partialConsonant ? 0.5 : 0);
+    
     // Higher completeness = higher confidence
     // Scale from 0.1 (1 syllable) to 0.95 (7 syllables for 8-syllable addresses)
     const maxLevel = this.config.address_length - 1;
@@ -702,15 +751,22 @@ export class H3SyllableSystem {
   }
 
   /**
-   * Get suggested refinements (next possible syllables)
+   * Get suggested refinements (next possible syllables or vowels)
    */
-  private getSuggestedRefinements(partialSyllables: string[]): string[] {
-    if (partialSyllables.length >= this.config.address_length - 1) {
+  private getSuggestedRefinements(parsed: { completeSyllables: string[]; partialConsonant?: string }): string[] {
+    const totalSyllables = parsed.completeSyllables.length + (parsed.partialConsonant ? 1 : 0);
+    
+    if (totalSyllables >= this.config.address_length - 1) {
       return []; // Already almost complete, no meaningful refinements
     }
     
-    // Return all available syllables as potential next options
-    return Array.from(this.syllableToIndex.keys()).sort();
+    if (parsed.partialConsonant) {
+      // For partial consonants, suggest possible vowels to complete the syllable
+      return this.config.vowels.map(vowel => parsed.partialConsonant + vowel).sort();
+    } else {
+      // For complete syllables, suggest all available syllables as potential next options
+      return Array.from(this.syllableToIndex.keys()).sort();
+    }
   }
 
   /**
@@ -756,7 +812,7 @@ export class H3SyllableSystem {
     if (partialSyllables.length > 1) {
       console.warn(`Address range for '${partialSyllables.join('')}' is unmappable, falling back to shorter prefix`);
       const shorterPartial = partialSyllables.slice(0, -1);
-      const fallbackRange = this.calculateAddressRange(shorterPartial);
+      const fallbackRange = this.calculateAddressRange({ completeSyllables: shorterPartial });
       return this.findValidAddressRange(fallbackRange.minAddress, fallbackRange.maxAddress, shorterPartial);
     }
     

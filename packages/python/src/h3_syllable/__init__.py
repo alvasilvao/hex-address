@@ -6,7 +6,7 @@ addresses using Uber's H3 spatial indexing system.
 
 Features:
 - Sub-meter precision (~0.5m) using H3 Level 15
-- Memorable syllable addresses (e.g., "je-ma-su-cu|du-ve-gu-ba")
+- Memorable syllable addresses (e.g., "dinenunukiwufeme")
 - Perfect reversible mapping for all real coordinates
 - Multiple language-specific configurations
 - Address validation (some combinations don't exist, like street addresses)
@@ -15,12 +15,12 @@ Features:
 Example:
     >>> from hex_address import H3SyllableSystem, is_valid_syllable_address
     >>>
-    >>> # Initialize system
-    >>> system = H3SyllableSystem("ascii-etmhjj")
+    >>> # Initialize system (uses ascii-dnqqwn by default)
+    >>> system = H3SyllableSystem()
     >>>
     >>> # Convert coordinate to syllable address
     >>> address = system.coordinate_to_syllable(48.8566, 2.3522)
-    >>> print(address)  # "je-ma-su-cu|du-ve-gu-ba"
+    >>> print(address)  # 8-syllable address
     >>>
     >>> # Convert back to coordinates
     >>> lat, lon = system.syllable_to_coordinate(address)
@@ -52,7 +52,7 @@ from .h3_syllable_system import (
     syllable_to_coordinate,
 )
 
-__version__ = "1.0.0"
+__version__ = "1.1.1"
 __author__ = "Álvaro Silva"
 __license__ = "MIT"
 __description__ = "Convert GPS coordinates to memorable hex addresses"

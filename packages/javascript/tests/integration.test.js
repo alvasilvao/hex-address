@@ -17,7 +17,7 @@ describe('Round-trip conversion tests', () => {
 
   test('Basic round-trip test with safe config', () => {
     const [lat, lng] = [48.8566, 2.3522]; // Paris
-    const configName = 'ascii-sfodl'; // International standard config (14C×5V, 9 syllables)
+    const configName = 'ascii-dnqqwn'; // International standard config (15C×5V, 8 syllables)
     
     // Step 1: Convert coordinates to syllable address
     const syllableAddress = coordinateToSyllable(lat, lng, configName);
@@ -46,7 +46,7 @@ describe('Round-trip conversion tests', () => {
   });
 
   test('Round-trip test for multiple coordinates', () => {
-    const configName = 'ascii-sfodl'; // International standard config
+    const configName = 'ascii-dnqqwn'; // International standard config
     
     for (const [lat, lng] of testCoordinates.slice(0, 3)) { // Test first 3 to keep it fast
       const syllableAddress = coordinateToSyllable(lat, lng, configName);
@@ -65,7 +65,7 @@ describe('Round-trip conversion tests', () => {
   test('International standard config should work', () => {
     const [lat, lng] = [48.8566, 2.3522];
     // Test the international standard config
-    const configName = 'ascii-sfodl';
+    const configName = 'ascii-dnqqwn';
     
     {
       const syllableAddress = coordinateToSyllable(lat, lng, configName);
@@ -84,7 +84,7 @@ describe('Round-trip conversion tests', () => {
   });
 
   test('Consistency test', () => {
-    const config = 'ascii-sfodl'; // International standard config
+    const config = 'ascii-dnqqwn'; // International standard config
     const coords = [48.8566, 2.3522];
     
     const address1 = coordinateToSyllable(coords[0], coords[1], config);
@@ -96,7 +96,7 @@ describe('Round-trip conversion tests', () => {
 
 describe('Partial address estimation tests', () => {
   test('Basic partial address estimation', () => {
-    const configName = 'ascii-sfodl';
+    const configName = 'ascii-dnqqwn';
     const result = estimateLocationFromPartial('dafe', configName);
     
     // Check return type and structure
@@ -129,7 +129,7 @@ describe('Partial address estimation tests', () => {
   });
   
   test('Different completeness levels', () => {
-    const configName = 'ascii-sfodl';
+    const configName = 'ascii-dnqqwn';
     
     const tests = [
       { partial: 'da', expected: 1 },
@@ -153,8 +153,59 @@ describe('Partial address estimation tests', () => {
     }
   });
   
+  test('Partial consonant support', () => {
+    const configName = 'ascii-dnqqwn';
+    
+    // Test partial consonant estimation
+    const result = estimateLocationFromPartial('papap', configName);
+    
+    // Check that partial consonant increases completeness by 0.5
+    expect(result.completenessLevel).toBe(2.5); // 'papa' (2) + 'p' (0.5)
+    
+    // Check that suggested refinements are the vowel completions
+    expect(result.suggestedRefinements).toEqual(['pa', 'pe', 'pi', 'po', 'pu']);
+    
+    // Confidence should be between complete syllables
+    const completeBefore = estimateLocationFromPartial('papa', configName);
+    const completeAfter = estimateLocationFromPartial('papapa', configName);
+    
+    expect(result.confidence).toBeGreaterThan(completeBefore.confidence);
+    expect(result.confidence).toBeLessThan(completeAfter.confidence);
+    
+    console.log(`Partial consonant "papap": completeness ${result.completenessLevel}, confidence ${result.confidence.toFixed(3)}, suggested: ${result.suggestedRefinements.join(',')}`);
+  });
+  
+  test('Partial consonant validation', () => {
+    const configName = 'ascii-dnqqwn';
+    
+    // Valid partial consonant
+    expect(() => estimateLocationFromPartial('dafep', configName)).not.toThrow();
+    
+    // Invalid partial consonant (not in our consonant list)
+    expect(() => estimateLocationFromPartial('dafeb', configName)).toThrow(/Invalid partial consonant: b/);
+    expect(() => estimateLocationFromPartial('dafex', configName)).toThrow(/Invalid partial consonant: x/);
+    
+    // Invalid partial consonant (vowel)
+    expect(() => estimateLocationFromPartial('dafea', configName)).toThrow(/Invalid partial consonant: a/);
+  });
+  
+  test('Partial consonant area comparison', () => {
+    const configName = 'ascii-dnqqwn';
+    
+    const completeResult = estimateLocationFromPartial('papa', configName);
+    const partialResult = estimateLocationFromPartial('papap', configName);
+    
+    // Partial consonant should have larger area than completing it to a specific vowel
+    const specificResult = estimateLocationFromPartial('papapa', configName);
+    
+    expect(partialResult.estimatedAreaKm2).toBeGreaterThan(specificResult.estimatedAreaKm2);
+    // Note: Partial consonant may have larger area than fewer complete syllables due to range expansion
+    
+    console.log(`Area comparison: complete=${completeResult.estimatedAreaKm2.toFixed(0)}, partial=${partialResult.estimatedAreaKm2.toFixed(0)}, specific=${specificResult.estimatedAreaKm2.toFixed(0)}`);
+  });
+
   test('Error handling for partial addresses', () => {
-    const configName = 'ascii-sfodl';
+    const configName = 'ascii-dnqqwn';
     
     // Empty partial address
     expect(() => estimateLocationFromPartial('', configName)).toThrow();
@@ -162,7 +213,7 @@ describe('Partial address estimation tests', () => {
     // Invalid syllable
     expect(() => estimateLocationFromPartial('xx-yy', configName)).toThrow();
     
-    // Too long (equal to max length - international standard has 9 syllables)
-    expect(() => estimateLocationFromPartial('dafehehodafehehoda', configName)).toThrow();
+    // Too long (equal to max length - international standard has 8 syllables)
+    expect(() => estimateLocationFromPartial('dafehehodafeheho', configName)).toThrow();
   });
 });

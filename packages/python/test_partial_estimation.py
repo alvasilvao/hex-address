@@ -13,7 +13,7 @@ def test_basic_functionality():
     """Test basic partial address estimation"""
     print("🧪 Testing basic functionality...")
     
-    result = estimate_location_from_partial('dafe', 'ascii-sfodl')
+    result = estimate_location_from_partial('dafe', 'ascii-dnqqwn')
     
     # Check return type and structure
     assert hasattr(result, 'center_coordinate')
@@ -47,7 +47,7 @@ def test_completeness_levels():
     """Test different completeness levels"""
     print("\n🧪 Testing completeness levels...")
     
-    config_name = 'ascii-sfodl'
+    config_name = 'ascii-dnqqwn'
     tests = [
         {'partial': 'da', 'expected': 1},
         {'partial': 'dafe', 'expected': 2},
@@ -75,7 +75,7 @@ def test_error_handling():
     """Test error handling"""
     print("\n🧪 Testing error handling...")
     
-    config_name = 'ascii-sfodl'
+    config_name = 'ascii-dnqqwn'
     
     # Empty partial address
     try:
@@ -91,9 +91,9 @@ def test_error_handling():
     except Exception:
         print("   ✅ Invalid syllable error handling works")
     
-    # Too long address (equal to max length - international standard has 9 syllables)
+    # Too long address (equal to max length - international standard has 8 syllables)
     try:
-        estimate_location_from_partial('dafehehodafehehoda', config_name)
+        estimate_location_from_partial('dafehehodafeheho', config_name)
         assert False, "Should have thrown error for complete address"
     except Exception:
         print("   ✅ Complete address error handling works")
@@ -102,7 +102,7 @@ def test_consistency_with_real_addresses():
     """Test consistency with real addresses"""
     print("\n🧪 Testing consistency with real addresses...")
     
-    config_name = 'ascii-sfodl'
+    config_name = 'ascii-dnqqwn'
     # Test coordinates (Paris)
     lat, lon = 48.8566, 2.3522
     
@@ -126,6 +126,82 @@ def test_consistency_with_real_addresses():
         
         # The original point should be reasonably close to the estimated area
         # (This is a rough check - the original point should be within the estimated area)
+
+def test_partial_consonant_support():
+    """Test partial consonant support"""
+    print("\n🧪 Testing partial consonant support...")
+    
+    config_name = 'ascii-dnqqwn'
+    
+    # Test partial consonant estimation
+    result = estimate_location_from_partial('papap', config_name)
+    
+    # Check that partial consonant increases completeness by 0.5
+    assert result.completeness_level == 2.5, f"Expected 2.5, got {result.completeness_level}"  # 'papa' (2) + 'p' (0.5)
+    
+    # Check that suggested refinements are the vowel completions
+    expected_refinements = ['pa', 'pe', 'pi', 'po', 'pu']
+    assert result.suggested_refinements == expected_refinements, f"Expected {expected_refinements}, got {result.suggested_refinements}"
+    
+    # Confidence should be between complete syllables
+    complete_before = estimate_location_from_partial('papa', config_name)
+    complete_after = estimate_location_from_partial('papapa', config_name)
+    
+    assert complete_before.confidence < result.confidence < complete_after.confidence
+    
+    print(f"   ✅ Partial consonant 'papap': completeness {result.completeness_level}, confidence {result.confidence:.3f}, suggested: {','.join(result.suggested_refinements)}")
+
+def test_partial_consonant_validation():
+    """Test partial consonant validation"""
+    print("\n🧪 Testing partial consonant validation...")
+    
+    config_name = 'ascii-dnqqwn'
+    
+    # Valid partial consonant
+    try:
+        estimate_location_from_partial('dafep', config_name)
+        print("   ✅ Valid partial consonant accepted")
+    except Exception as e:
+        assert False, f"Valid partial consonant should not throw error: {e}"
+    
+    # Invalid partial consonant (not in our consonant list)
+    try:
+        estimate_location_from_partial('dafeb', config_name)
+        assert False, "Should have thrown error for invalid consonant 'b'"
+    except Exception as e:
+        assert "Invalid partial consonant: b" in str(e)
+        print("   ✅ Invalid consonant 'b' properly rejected")
+    
+    try:
+        estimate_location_from_partial('dafex', config_name)
+        assert False, "Should have thrown error for invalid consonant 'x'"
+    except Exception as e:
+        assert "Invalid partial consonant: x" in str(e)
+        print("   ✅ Invalid consonant 'x' properly rejected")
+    
+    # Invalid partial consonant (vowel)
+    try:
+        estimate_location_from_partial('dafea', config_name)
+        assert False, "Should have thrown error for vowel as partial consonant"
+    except Exception as e:
+        assert "Invalid partial consonant: a" in str(e)
+        print("   ✅ Vowel 'a' properly rejected as partial consonant")
+
+def test_partial_consonant_area_comparison():
+    """Test partial consonant area relationships"""
+    print("\n🧪 Testing partial consonant area comparison...")
+    
+    config_name = 'ascii-dnqqwn'
+    
+    complete_result = estimate_location_from_partial('papa', config_name)
+    partial_result = estimate_location_from_partial('papap', config_name)
+    specific_result = estimate_location_from_partial('papapa', config_name)
+    
+    # Partial consonant should have larger area than completing it to a specific vowel
+    assert partial_result.estimated_area_km2 > specific_result.estimated_area_km2
+    
+    print(f"   ✅ Area comparison: complete={complete_result.estimated_area_km2:.0f}, partial={partial_result.estimated_area_km2:.0f}, specific={specific_result.estimated_area_km2:.0f}")
+    print("   ✅ Partial consonant correctly spans larger area than specific completion")
 
 def test_cross_package_consistency():
     """Test that Python and JavaScript give same results"""
@@ -161,11 +237,14 @@ if __name__ == "__main__":
     try:
         test_basic_functionality()
         test_completeness_levels()
+        test_partial_consonant_support()
+        test_partial_consonant_validation()
+        test_partial_consonant_area_comparison()
         test_error_handling()
         test_consistency_with_real_addresses()
         test_cross_package_consistency()
         
-        print(f"\n🎉 All tests passed! Python partial address estimation is working correctly.")
+        print(f"\n🎉 All tests passed! Python partial address estimation (including partial consonants) is working correctly.")
         
     except Exception as e:
         print(f"\n❌ Test failed: {e}")

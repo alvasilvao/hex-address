@@ -8,11 +8,11 @@
  * import { H3SyllableSystem, isValidSyllableAddress } from 'hex-address';
  * 
  * // Initialize system
- * const system = new H3SyllableSystem('ascii-etmhjj');
+ * const system = new H3SyllableSystem('ascii-dnqqwn');
  * 
  * // Convert coordinates to syllable address
  * const address = system.coordinateToSyllable(48.8566, 2.3522);
- * console.log(address); // "je-ma-su-cu|du-ve-gu-ba"
+ * console.log(address); // "dinenunukiwufeme"
  * 
  * // Convert back to coordinates
  * const [lat, lon] = system.syllableToCoordinate(address);
@@ -49,7 +49,7 @@ import { PartialLocationEstimate } from './types';
 export function coordinateToSyllable(
   latitude: number,
   longitude: number,
-  configName: string = 'ascii-etmhjj'
+  configName: string = 'ascii-dnqqwn'
 ): string {
   const system = new H3SyllableSystem(configName);
   return system.coordinateToSyllable(latitude, longitude);
@@ -60,7 +60,7 @@ export function coordinateToSyllable(
  */
 export function syllableToCoordinate(
   syllableAddress: string,
-  configName: string = 'ascii-etmhjj'
+  configName: string = 'ascii-dnqqwn'
 ): [number, number] {
   const system = new H3SyllableSystem(configName);
   return system.syllableToCoordinate(syllableAddress);
@@ -74,7 +74,7 @@ export function syllableToCoordinate(
  */
 export function isValidSyllableAddress(
   syllableAddress: string,
-  configName: string = 'ascii-etmhjj'
+  configName: string = 'ascii-dnqqwn'
 ): boolean {
   const system = new H3SyllableSystem(configName);
   return system.isValidSyllableAddress(syllableAddress);
@@ -89,7 +89,7 @@ export function isValidSyllableAddress(
  */
 export function estimateLocationFromPartial(
   partialAddress: string,
-  configName: string = 'ascii-etmhjj'
+  configName: string = 'ascii-dnqqwn'
 ): PartialLocationEstimate {
   const system = new H3SyllableSystem(configName);
   return system.estimateLocationFromPartial(partialAddress);
@@ -169,7 +169,7 @@ export function findConfigsByLetters(letters: string[]): string[] {
 }
 
 // Package metadata
-export const version = '1.0.0';
+export const version = '1.1.1';
 export const author = 'Álvaro Silva';
 export const license = 'MIT';
 export const description = 'Convert GPS coordinates to memorable hex addresses';

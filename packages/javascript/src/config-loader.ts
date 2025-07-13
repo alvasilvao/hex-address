@@ -1,13 +1,13 @@
 import { SyllableConfig } from './types';
 
 // Import all configurations statically for browser compatibility
-import asciiSfodlConfig from './configs/ascii-sfodl.json';
+import asciiDnqqwnConfig from './configs/ascii-dnqqwn.json';
 
 /**
  * Pre-loaded configurations for browser and Node.js compatibility
  */
 const BUNDLED_CONFIGS: Record<string, SyllableConfig> = {
-  'ascii-sfodl': asciiSfodlConfig as SyllableConfig,
+  'ascii-dnqqwn': asciiDnqqwnConfig as SyllableConfig,
 };
 
 /**

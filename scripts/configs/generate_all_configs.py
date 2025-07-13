@@ -408,11 +408,11 @@ def main():
     print()
     
     # INTERNATIONAL STANDARD LETTER SET
-    # Uses 14 consonants optimized for global clarity and pronunciation
+    # Uses 15 consonants optimized for global clarity and pronunciation
     letter_sets = [
-        # INTERNATIONAL STANDARD - 14 consonants optimized for global clarity
+        # INTERNATIONAL STANDARD - 15 consonants optimized for global clarity
         {
-            'letters': list('sptkmnlfrwhvjdaeiou'),  # 14C × 5V = 70 syllables → 8 length
+            'letters': list('sptkmnlfrwhvjzdaeiou'),  # 15C × 5V = 75 syllables → 8 length
             'description': 'International standard - consonants exist in virtually all world languages, avoid confusion pairs (b/p, g/k), include sounds from different parts of mouth for acoustic separation, overlap with NATO phonetic alphabet tested across 31 countries'
         }
     ]

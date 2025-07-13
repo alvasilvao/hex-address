@@ -1,6 +1,6 @@
 {
-  "name": "ascii-sfodl",
-  "description": "Basic Latin alphabet, 14 consonants, 5 vowels, 9 syllables, max 1 consecutive",
+  "name": "ascii-dnqqwn",
+  "description": "Basic Latin alphabet, 15 consonants, 5 vowels, 8 syllables, max 1 consecutive",
   "consonants": [
     "d",
     "f",
@@ -15,7 +15,8 @@
     "s",
     "t",
     "v",
-    "w"
+    "w",
+    "z"
   ],
   "vowels": [
     "a",
@@ -24,12 +25,12 @@
     "o",
     "u"
   ],
-  "address_length": 9,
+  "address_length": 8,
   "max_consecutive": 1,
   "h3_resolution": 15,
   "metadata": {
     "alphabet": "ascii",
-    "base26_identifier": "sfodl",
+    "base26_identifier": "dnqqwn",
     "binary_array": [
       1,
       0,
@@ -56,7 +57,7 @@
       1,
       0,
       0,
-      0
+      1
     ],
     "selected_letters": [
       "a",
@@ -77,14 +78,15 @@
       "t",
       "u",
       "v",
-      "w"
+      "w",
+      "z"
     ],
     "auto_generated": true,
     "generation_method": "international_standard",
-    "total_syllables": 70,
-    "total_combinations": 39729009783651300,
+    "total_syllables": 75,
+    "total_combinations": 986912191996800,
     "h3_target_space": 579202504213046,
-    "coverage_ratio": 68.59260706690232,
-    "coverage_multiple": "68.59x"
+    "coverage_ratio": 1.7039156164176175,
+    "coverage_multiple": "1.70x"
   }
 }
