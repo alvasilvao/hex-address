@@ -55,6 +55,28 @@ class SystemInfo:
     precision_meters: float
 
 
+@dataclass
+class GeographicBounds:
+    """Geographic bounds."""
+    
+    north: float
+    south: float
+    east: float
+    west: float
+
+
+@dataclass
+class PartialLocationEstimate:
+    """Result from partial address location estimation."""
+    
+    center_coordinate: Tuple[float, float]
+    bounds: GeographicBounds
+    confidence: float
+    estimated_area_km2: float
+    completeness_level: int
+    suggested_refinements: List[str] = None
+
+
 class H3SyllableSystem:
     """
     H3 Level 15 Syllable Address System
@@ -516,41 +538,17 @@ class H3SyllableSystem:
         return self._format_syllable_address(syllables)
 
     def _format_syllable_address(self, syllables: List[str]) -> str:
-        """Format syllable address based on address length."""
-        length = len(syllables)
-
-        if length == 6:
-            # xx-xx-xx|xx-xx-xx
-            return f"{'-'.join(syllables[:3])}|{'-'.join(syllables[3:])}"
-        elif length == 7:
-            # xx-xx-xx-xx|xx-xx-xx
-            return f"{'-'.join(syllables[:4])}|{'-'.join(syllables[4:])}"
-        elif length == 8:
-            # xx-xx-xx-xx|xx-xx-xx-xx
-            return f"{'-'.join(syllables[:4])}|{'-'.join(syllables[4:])}"
-        elif length == 9:
-            # xx-xx-xx|xx-xx-xx|xx-xx-xx
-            return f"{'-'.join(syllables[:3])}|{'-'.join(syllables[3:6])}|{'-'.join(syllables[6:])}"
-        elif length == 10:
-            # xx-xx-xx|xx-xx-xx|xx-xx-xx-xx
-            return f"{'-'.join(syllables[:3])}|{'-'.join(syllables[3:6])}|{'-'.join(syllables[6:])}"
-        elif length == 12:
-            # xx-xx-xx|xx-xx-xx|xx-xx-xx|xx-xx-xx
-            return f"{'-'.join(syllables[:3])}|{'-'.join(syllables[3:6])}|{'-'.join(syllables[6:9])}|{'-'.join(syllables[9:])}"
-        else:
-            # Default: split into groups of 3, with remainder in last group
-            groups = []
-            for i in range(0, length, 3):
-                groups.append("-".join(syllables[i : i + 3]))
-            return "|".join(groups)
+        """Format syllable address as concatenated string."""
+        return "".join(syllables)
 
     def _syllable_address_to_integer_index(self, syllable_address: str) -> int:
         """Convert Syllable Address to Integer Index using base-N conversion.
         Processes syllables from coarse to fine geography (most significant first).
         """
 
-        # Parse syllable address - handle pipe-separated format
-        syllables = syllable_address.lower().replace("|", "-").split("-")
+        # Parse 2-character syllables from concatenated string
+        clean_address = syllable_address.lower()
+        syllables = [clean_address[i:i+2] for i in range(0, len(clean_address), 2)]
 
         if len(syllables) != self.address_length:
             raise ValueError(f"Address must have {self.address_length} syllables")
@@ -561,10 +559,10 @@ class H3SyllableSystem:
         # Process syllables from right to left (fine to coarse) to match the reversed ordering
         for pos in range(len(syllables)):
             syllable = syllables[len(syllables) - 1 - pos]  # Process from right to left
-            if syllable.lower() not in self.syllable_to_index:
+            if syllable not in self.syllable_to_index:
                 raise ValueError(f"Unknown syllable: {syllable}")
 
-            syllable_idx = self.syllable_to_index[syllable.lower()]
+            syllable_idx = self.syllable_to_index[syllable]
             # Use the same base conversion logic as forward direction
             integer_value += syllable_idx * (self.total_syllables**pos)
 
@@ -656,6 +654,65 @@ class H3SyllableSystem:
             # Any conversion error means the address doesn't exist
             return False
 
+    def estimate_location_from_partial(self, partial_address: str) -> PartialLocationEstimate:
+        """
+        Estimate location and bounds from a partial syllable address.
+
+        This function calculates the geographic area that could be represented by
+        a partial syllable address by determining the minimum and maximum complete
+        addresses that start with the given partial address.
+
+        Args:
+            partial_address: Partial syllable address (e.g., "bi-me" or "bi-me-mu")
+
+        Returns:
+            PartialLocationEstimate with center coordinates, bounds, confidence, and area
+
+        Raises:
+            ConversionError: If partial address is invalid or conversion fails
+
+        Example:
+            >>> system = H3SyllableSystem()
+            >>> estimate = system.estimate_location_from_partial("bi-me")
+            >>> print(f"Center: {estimate.center_coordinate}")
+            >>> print(f"Area: {estimate.estimated_area_km2:.1f} km²")
+        """
+        try:
+            # Parse partial address and validate format
+            partial_syllables = self._parse_partial_address(partial_address)
+            
+            # Calculate address range (min and max complete addresses)
+            address_range = self._calculate_address_range(partial_syllables)
+            
+            # Find valid addresses within the range, with smart fallback if initial addresses are invalid
+            valid_range = self._find_valid_address_range(address_range["min_address"], address_range["max_address"], partial_syllables)
+            
+            # Convert both addresses to coordinates
+            min_coords = self.syllable_to_coordinate(valid_range["min_address"])
+            max_coords = self.syllable_to_coordinate(valid_range["max_address"])
+            
+            # Calculate geographic bounds and metrics
+            bounds = self._calculate_geographic_bounds(min_coords, max_coords)
+            center = self._calculate_center(min_coords, max_coords)
+            area_km2 = self._calculate_area_km2(bounds)
+            confidence = self._calculate_confidence(len(partial_syllables))
+            
+            # Get suggested refinements (next possible syllables)
+            suggested_refinements = self._get_suggested_refinements(partial_syllables)
+            
+            return PartialLocationEstimate(
+                center_coordinate=center,
+                bounds=bounds,
+                confidence=confidence,
+                estimated_area_km2=area_km2,
+                completeness_level=len(partial_syllables),
+                suggested_refinements=suggested_refinements
+            )
+        except Exception as e:
+            if isinstance(e, ConversionError):
+                raise e
+            raise ConversionError(f"Partial address estimation failed: {str(e)}")
+
     def clear_cache(self):
         """Clear internal cache."""
         self._cache.clear()
@@ -720,6 +777,210 @@ class H3SyllableSystem:
             config_name = "ascii-etmhjj"
         return cls(config_name=config_name)
 
+    def _parse_partial_address(self, partial_address: str) -> List[str]:
+        """Parse partial address into syllables array."""
+        if not partial_address or partial_address.strip() == "":
+            raise ConversionError("Partial address cannot be empty")
+
+        # Parse 2-character syllables from concatenated string
+        clean_address = partial_address.lower().strip()
+        syllables = [clean_address[i:i+2] for i in range(0, len(clean_address), 2)]
+        
+        if len(syllables) == 0:
+            raise ConversionError("No valid syllables found in partial address")
+
+        if len(syllables) >= self.address_length:
+            raise ConversionError(f"Partial address cannot have {len(syllables)} or more syllables (max: {self.address_length - 1})")
+
+        # Validate each syllable
+        for syllable in syllables:
+            if syllable not in self.syllable_to_index:
+                raise ConversionError(f"Invalid syllable: {syllable}")
+
+        return syllables
+
+    def _calculate_address_range(self, partial_syllables: List[str]) -> Dict[str, str]:
+        """Calculate the range of complete addresses for a partial address."""
+        remaining_syllables = self.address_length - len(partial_syllables)
+        
+        if remaining_syllables <= 0:
+            raise ConversionError("Partial address is already complete or too long")
+
+        # Get min and max syllables for padding
+        min_max = self._get_min_max_syllables()
+        min_syllable = min_max["min_syllable"]
+        max_syllable = min_max["max_syllable"]
+        
+        # Create min address: pad with minimum syllables
+        min_syllables = partial_syllables.copy()
+        for i in range(remaining_syllables):
+            min_syllables.append(min_syllable)
+        
+        # Create max address: pad with maximum syllables
+        max_syllables = partial_syllables.copy()
+        for i in range(remaining_syllables):
+            max_syllables.append(max_syllable)
+        
+        return {
+            "min_address": self._format_syllable_address(min_syllables),
+            "max_address": self._format_syllable_address(max_syllables)
+        }
+
+    def _get_min_max_syllables(self) -> Dict[str, str]:
+        """Get the minimum and maximum syllables for the current config."""
+        syllables = sorted(self.syllable_to_index.keys())
+        return {
+            "min_syllable": syllables[0],
+            "max_syllable": syllables[-1]
+        }
+
+    def _calculate_geographic_bounds(self, min_coords: Tuple[float, float], max_coords: Tuple[float, float]) -> GeographicBounds:
+        """Calculate geographic bounds from min and max coordinates."""
+        min_lat, min_lon = min_coords
+        max_lat, max_lon = max_coords
+        
+        return GeographicBounds(
+            north=max(min_lat, max_lat),
+            south=min(min_lat, max_lat),
+            east=max(min_lon, max_lon),
+            west=min(min_lon, max_lon)
+        )
+
+    def _calculate_center(self, min_coords: Tuple[float, float], max_coords: Tuple[float, float]) -> Tuple[float, float]:
+        """Calculate center point from min and max coordinates."""
+        min_lat, min_lon = min_coords
+        max_lat, max_lon = max_coords
+        
+        return (
+            (min_lat + max_lat) / 2,
+            (min_lon + max_lon) / 2
+        )
+
+    def _calculate_area_km2(self, bounds: GeographicBounds) -> float:
+        """Calculate area in square kilometers from geographic bounds."""
+        lat_diff = bounds.north - bounds.south
+        lon_diff = bounds.east - bounds.west
+        
+        # Convert to approximate distance in kilometers
+        avg_lat = (bounds.north + bounds.south) / 2
+        lat_km = lat_diff * 111.32  # ~111.32 km per degree latitude
+        lon_km = lon_diff * 111.32 * math.cos(math.radians(avg_lat))  # Adjust for longitude at this latitude
+        
+        return lat_km * lon_km
+
+    def _calculate_confidence(self, completeness_level: int) -> float:
+        """Calculate confidence score based on completeness level."""
+        # Higher completeness = higher confidence
+        # Scale from 0.1 (1 syllable) to 0.95 (7 syllables for 8-syllable addresses)
+        max_level = self.address_length - 1
+        confidence = 0.1 + (completeness_level / max_level) * 0.85
+        return min(0.95, max(0.1, confidence))
+
+    def _get_suggested_refinements(self, partial_syllables: List[str]) -> List[str]:
+        """Get suggested refinements (next possible syllables)."""
+        if len(partial_syllables) >= self.address_length - 1:
+            return []  # Already almost complete, no meaningful refinements
+        
+        # Return all available syllables as potential next options
+        return sorted(self.syllable_to_index.keys())
+
+    def _find_valid_address_range(self, min_address: str, max_address: str, partial_syllables: List[str]) -> Dict[str, str]:
+        """Find valid address range with smart fallback when min/max addresses are invalid."""
+        # First, try the exact range
+        min_valid = self.is_valid_syllable_address(min_address)
+        max_valid = self.is_valid_syllable_address(max_address)
+        
+        if min_valid and max_valid:
+            # Perfect! Both addresses are valid
+            return {"min_address": min_address, "max_address": max_address}
+        
+        # If either is invalid, try limited search (10 attempts max to avoid infinite loops)
+        max_attempts = 10
+        valid_min_address = min_address
+        valid_max_address = max_address
+        
+        if not min_valid:
+            attempts = 0
+            while not self.is_valid_syllable_address(valid_min_address) and attempts < max_attempts:
+                valid_min_address = self._increment_address(valid_min_address, partial_syllables)
+                attempts += 1
+        
+        if not max_valid:
+            attempts = 0
+            while not self.is_valid_syllable_address(valid_max_address) and attempts < max_attempts:
+                valid_max_address = self._decrement_address(valid_max_address, partial_syllables)
+                attempts += 1
+        
+        # Check if we found valid addresses
+        if self.is_valid_syllable_address(valid_min_address) and self.is_valid_syllable_address(valid_max_address):
+            return {"min_address": valid_min_address, "max_address": valid_max_address}
+        
+        # If still no luck, try fallback to shorter prefix
+        if len(partial_syllables) > 1:
+            print(f"Warning: Address range for '{''.join(partial_syllables)}' is unmappable, falling back to shorter prefix")
+            shorter_partial = partial_syllables[:-1]
+            fallback_range = self._calculate_address_range(shorter_partial)
+            return self._find_valid_address_range(fallback_range["min_address"], fallback_range["max_address"], shorter_partial)
+        
+        # Last resort: throw error with helpful message
+        raise ConversionError(
+            f"The partial address '{''.join(partial_syllables)}' maps to an unmappable region of the H3 address space. "
+            f"This occurs when syllable combinations don't correspond to valid geographic locations. "
+            f"Try a different partial address or use a shorter prefix."
+        )
+
+    def _increment_address(self, address: str, partial_syllables: List[str]) -> str:
+        """Increment address intelligently from left to right with carry-over."""
+        # Parse 2-character syllables from concatenated string
+        clean_address = address.lower()
+        syllables = [clean_address[i:i+2] for i in range(0, len(clean_address), 2)]
+        all_syllables = sorted(self.syllable_to_index.keys())
+        partial_length = len(partial_syllables)
+        
+        # Start incrementing from the first syllable after the partial prefix
+        for i in range(partial_length, len(syllables)):
+            current_syllable = syllables[i]
+            current_index = all_syllables.index(current_syllable)
+            
+            if current_index < len(all_syllables) - 1:
+                # Can increment this syllable
+                syllables[i] = all_syllables[current_index + 1]
+                # Reset all syllables after this one to min values
+                for j in range(i + 1, len(syllables)):
+                    syllables[j] = all_syllables[0]
+                break
+            else:
+                # This syllable is at max, continue to next position
+                syllables[i] = all_syllables[0]
+        
+        return self._format_syllable_address(syllables)
+
+    def _decrement_address(self, address: str, partial_syllables: List[str]) -> str:
+        """Decrement address intelligently from left to right with borrow."""
+        # Parse 2-character syllables from concatenated string
+        clean_address = address.lower()
+        syllables = [clean_address[i:i+2] for i in range(0, len(clean_address), 2)]
+        all_syllables = sorted(self.syllable_to_index.keys())
+        partial_length = len(partial_syllables)
+        
+        # Start decrementing from the first syllable after the partial prefix
+        for i in range(partial_length, len(syllables)):
+            current_syllable = syllables[i]
+            current_index = all_syllables.index(current_syllable)
+            
+            if current_index > 0:
+                # Can decrement this syllable
+                syllables[i] = all_syllables[current_index - 1]
+                # Reset all syllables after this one to max values
+                for j in range(i + 1, len(syllables)):
+                    syllables[j] = all_syllables[-1]
+                break
+            else:
+                # This syllable is at min, continue to next position
+                syllables[i] = all_syllables[-1]
+        
+        return self._format_syllable_address(syllables)
+
 
 # Convenience functions for quick usage
 def coordinate_to_syllable(
@@ -729,7 +990,7 @@ def coordinate_to_syllable(
     letters: List[str] = None,
 ) -> str:
     """Convert coordinates to syllable address using specified configuration."""
-    system = H3SyllableSystem(config_name=config_name, letters=letters)
+    system = H3SyllableSystem(config_name=config_name)
     return system.coordinate_to_syllable(latitude, longitude)
 
 
@@ -737,7 +998,7 @@ def syllable_to_coordinate(
     syllable_address: str, config_name: str = None, letters: List[str] = None
 ) -> Tuple[float, float]:
     """Convert syllable address to coordinates using specified configuration."""
-    system = H3SyllableSystem(config_name=config_name, letters=letters)
+    system = H3SyllableSystem(config_name=config_name)
     return system.syllable_to_coordinate(syllable_address)
 
 
@@ -763,6 +1024,30 @@ def is_valid_syllable_address(syllable_address: str, config_name: str = None) ->
     """
     system = H3SyllableSystem(config_name)
     return system.is_valid_syllable_address(syllable_address)
+
+
+def estimate_location_from_partial(partial_address: str, config_name: str = None) -> PartialLocationEstimate:
+    """
+    Estimate location and bounds from a partial syllable address.
+    
+    This function calculates the geographic area that could be represented by
+    a partial syllable address by determining the minimum and maximum complete
+    addresses that start with the given partial address.
+
+    Args:
+        partial_address: Partial syllable address (e.g., "bi-me" or "bi-me-mu")
+        config_name: Configuration to use for estimation
+
+    Returns:
+        PartialLocationEstimate with center coordinates, bounds, confidence, and area
+
+    Example:
+        >>> estimate = estimate_location_from_partial("bi-me")
+        >>> print(f"Center: {estimate.center_coordinate}")
+        >>> print(f"Area: {estimate.estimated_area_km2:.1f} km²")
+    """
+    system = H3SyllableSystem(config_name)
+    return system.estimate_location_from_partial(partial_address)
 
 
 def list_available_configs() -> List[str]:

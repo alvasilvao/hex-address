@@ -39,10 +39,13 @@ from .config_loader import (
 )
 from .h3_syllable_system import (
     ConversionError,
+    GeographicBounds,
     H3SyllableError,
     H3SyllableSystem,
+    PartialLocationEstimate,
     SystemInfo,
     coordinate_to_syllable,
+    estimate_location_from_partial,
     get_config_info,
     is_valid_syllable_address,
     list_available_configs,
@@ -60,6 +63,8 @@ __all__ = [
     "H3SyllableSystem",
     "SyllableConfig",
     "SystemInfo",
+    "GeographicBounds",
+    "PartialLocationEstimate",
     # Exceptions
     "H3SyllableError",
     "ConversionError",
@@ -67,6 +72,7 @@ __all__ = [
     "coordinate_to_syllable",
     "syllable_to_coordinate",
     "is_valid_syllable_address",
+    "estimate_location_from_partial",
     # Configuration functions
     "get_config",
     "get_all_configs",

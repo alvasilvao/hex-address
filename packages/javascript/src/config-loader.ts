@@ -1,27 +1,13 @@
 import { SyllableConfig } from './types';
 
 // Import all configurations statically for browser compatibility
-import asciiEtmhjjConfig from './configs/ascii-etmhjj.json';
-import asciiBowotConfig from './configs/ascii-bowoat.json';
-import asciiGteupConfig from './configs/ascii-gteup.json';
-import asciiSfnmhConfig from './configs/ascii-sfnmh.json';
-import asciiBwihfConfig from './configs/ascii-bwihf.json';
-import asciiCxtftConfig from './configs/ascii-cxtft.json';
-import asciiGlqvbConfig from './configs/ascii-glqvb.json';
-import asciiFqwfmdConfig from './configs/ascii-fqwfmd.json';
+import asciiSfodlConfig from './configs/ascii-sfodl.json';
 
 /**
  * Pre-loaded configurations for browser and Node.js compatibility
  */
 const BUNDLED_CONFIGS: Record<string, SyllableConfig> = {
-  'ascii-etmhjj': asciiEtmhjjConfig as SyllableConfig,
-  'ascii-bowoat': asciiBowotConfig as SyllableConfig,
-  'ascii-gteup': asciiGteupConfig as SyllableConfig,
-  'ascii-sfnmh': asciiSfnmhConfig as SyllableConfig,
-  'ascii-bwihf': asciiBwihfConfig as SyllableConfig,
-  'ascii-cxtft': asciiCxtftConfig as SyllableConfig,
-  'ascii-glqvb': asciiGlqvbConfig as SyllableConfig,
-  'ascii-fqwfmd': asciiFqwfmdConfig as SyllableConfig,
+  'ascii-sfodl': asciiSfodlConfig as SyllableConfig,
 };
 
 /**

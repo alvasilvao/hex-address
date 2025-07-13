@@ -34,11 +34,14 @@ export {
   SystemInfo,
   H3SyllableError,
   ConversionError,
+  GeographicBounds,
+  PartialLocationEstimate,
 } from './types';
 
 // Convenience functions
 import { H3SyllableSystem } from './h3-syllable-system';
 import { listConfigs } from './config-loader';
+import { PartialLocationEstimate } from './types';
 
 /**
  * Convert coordinates to syllable address using specified configuration
@@ -75,6 +78,21 @@ export function isValidSyllableAddress(
 ): boolean {
   const system = new H3SyllableSystem(configName);
   return system.isValidSyllableAddress(syllableAddress);
+}
+
+/**
+ * Estimate location and bounds from a partial syllable address
+ * 
+ * This function calculates the geographic area that could be represented by
+ * a partial syllable address by determining the minimum and maximum complete
+ * addresses that start with the given partial address.
+ */
+export function estimateLocationFromPartial(
+  partialAddress: string,
+  configName: string = 'ascii-etmhjj'
+): PartialLocationEstimate {
+  const system = new H3SyllableSystem(configName);
+  return system.estimateLocationFromPartial(partialAddress);
 }
 
 /**

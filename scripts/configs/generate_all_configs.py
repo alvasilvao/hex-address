@@ -172,7 +172,7 @@ class ConfigGenerator:
                 'binary_array': binary_array,
                 'selected_letters': sorted(letters),
                 'auto_generated': True,
-                'generation_method': 'minimum_syllables',
+                'generation_method': 'international_standard',
                 'total_syllables': len(consonants) * len(vowels),
                 'total_combinations': total_combinations,
                 'h3_target_space': self.h3_target,
@@ -407,55 +407,13 @@ def main():
     print(f"Constraint: max_consecutive = 1")
     print()
     
-    # MODIFY THESE LETTER SETS FOR YOUR TARGET AUDIENCES
-    # Each set defines letters to use for a specific audience or use case
+    # INTERNATIONAL STANDARD LETTER SET
+    # Uses 14 consonants optimized for global clarity and pronunciation
     letter_sets = [
-        # 1. BROAD INTERNATIONAL AUDIENCE - focuses on universally pronounceable sounds
+        # INTERNATIONAL STANDARD - 14 consonants optimized for global clarity
         {
-            'letters': list('bdfghkmnpstwyzbcaeiou'),  # 15C × 5V = 75 syllables → 8 length
-            'description': 'International - universally pronounceable sounds for global users, avoids problematic r/l, v, j sounds'
-        },
-        
-        # 2. JAPANESE-FRIENDLY - avoids L/R confusion and difficult sounds
-        {
-            'letters': list('bdfghkmnpstyaeiou'),  # 10C × 5V = 50 syllables → 9 length  
-            'description': 'Japanese-friendly - no L/R/V/F sounds for Japanese speakers'
-        },
-        
-        # 3. SPANISH/ROMANCE LANGUAGES - leverages familiar sounds
-        {
-            'letters': list('bcdfgjlmnprstvaeio'),  # 14C × 4V = 56 syllables → 9 length
-            'description': 'Spanish/Romance languages - familiar phonetics for Spanish, Italian, French speakers'
-        },
-        
-        # 4. GERMANIC LANGUAGES - includes sounds common in German/Dutch/Nordic
-        {
-            'letters': list('bdfghklmnprstvwaeiou'),  # 14C × 5V = 70 syllables → 9 length
-            'description': 'Germanic languages - German/Dutch/Nordic sounds for Northern European speakers'
-        },
-        
-        # 5. MINIMAL SET - smallest viable configuration
-        {
-            'letters': list('bdgkmnpstaeio'),  # 9C × 4V = 36 syllables → 10 length
-            'description': 'Minimal viable - core sounds only for testing/development with shortest syllable set'
-        },
-        
-        # 6. TYPING-OPTIMIZED - home row and common keys
-        {
-            'letters': list('dfghjklsaeiou'),  # 8C × 5V = 40 syllables → 9 length
-            'description': 'Typing-optimized - home row focused for heavy keyboard users'
-        },
-        
-        # 7. VOICE-FRIENDLY - distinct sounds for voice recognition
-        {
-            'letters': list('bdfghkmnpstvaeio'),  # 11C × 4V = 44 syllables → 9 length
-            'description': 'Voice recognition - distinct sounds for voice input/dictation users'
-        },
-        
-        # 8. MAXIMUM COVERAGE - uses most letters for shortest addresses
-        {
-            'letters': list('bcdfghjklmnpqrstvwxyzaeiou'),  # 20C × 5V = 100 syllables → 8 length
-            'description': 'Maximum coverage - shortest addresses for advanced users wanting 8-syllable addresses'
+            'letters': list('sptkmnlfrwhvjdaeiou'),  # 14C × 5V = 70 syllables → 8 length
+            'description': 'International standard - consonants exist in virtually all world languages, avoid confusion pairs (b/p, g/k), include sounds from different parts of mouth for acoustic separation, overlap with NATO phonetic alphabet tested across 31 countries'
         }
     ]
     

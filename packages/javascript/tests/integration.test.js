@@ -1,5 +1,5 @@
 // Integration tests using the built package
-const { coordinateToSyllable, syllableToCoordinate, listAvailableConfigs } = require('../dist/index.js');
+const { coordinateToSyllable, syllableToCoordinate, listAvailableConfigs, estimateLocationFromPartial } = require('../dist/index.js');
 
 describe('Round-trip conversion tests', () => {
   const testCoordinates = [
@@ -17,7 +17,7 @@ describe('Round-trip conversion tests', () => {
 
   test('Basic round-trip test with safe config', () => {
     const [lat, lng] = [48.8566, 2.3522]; // Paris
-    const configName = 'ascii-sfnmh'; // Safe default config (15C×5V, 8 syllables)
+    const configName = 'ascii-sfodl'; // International standard config (14C×5V, 9 syllables)
     
     // Step 1: Convert coordinates to syllable address
     const syllableAddress = coordinateToSyllable(lat, lng, configName);
@@ -46,7 +46,7 @@ describe('Round-trip conversion tests', () => {
   });
 
   test('Round-trip test for multiple coordinates', () => {
-    const configName = 'ascii-sfnmh'; // Safe config
+    const configName = 'ascii-sfodl'; // International standard config
     
     for (const [lat, lng] of testCoordinates.slice(0, 3)) { // Test first 3 to keep it fast
       const syllableAddress = coordinateToSyllable(lat, lng, configName);
@@ -62,12 +62,12 @@ describe('Round-trip conversion tests', () => {
     }
   });
 
-  test('Safe configs with 8 syllables should work', () => {
+  test('International standard config should work', () => {
     const [lat, lng] = [48.8566, 2.3522];
-    // Test only safe configs with 8 syllables (ascii-etmhjj has duplicate consonant bug)
-    const safe8SyllableConfigs = ['ascii-sfnmh'];
+    // Test the international standard config
+    const configName = 'ascii-sfodl';
     
-    for (const configName of safe8SyllableConfigs) {
+    {
       const syllableAddress = coordinateToSyllable(lat, lng, configName);
       const [resultLat, resultLng] = syllableToCoordinate(syllableAddress, configName);
       
@@ -84,12 +84,85 @@ describe('Round-trip conversion tests', () => {
   });
 
   test('Consistency test', () => {
-    const config = 'ascii-sfnmh'; // Safe config
+    const config = 'ascii-sfodl'; // International standard config
     const coords = [48.8566, 2.3522];
     
     const address1 = coordinateToSyllable(coords[0], coords[1], config);
     const address2 = coordinateToSyllable(coords[0], coords[1], config);
     
     expect(address1).toBe(address2);
+  });
+});
+
+describe('Partial address estimation tests', () => {
+  test('Basic partial address estimation', () => {
+    const configName = 'ascii-sfodl';
+    const result = estimateLocationFromPartial('dafe', configName);
+    
+    // Check return type and structure
+    expect(typeof result).toBe('object');
+    expect(Array.isArray(result.centerCoordinate)).toBe(true);
+    expect(result.centerCoordinate).toHaveLength(2);
+    expect(typeof result.centerCoordinate[0]).toBe('number');
+    expect(typeof result.centerCoordinate[1]).toBe('number');
+    
+    expect(typeof result.bounds).toBe('object');
+    expect(typeof result.bounds.north).toBe('number');
+    expect(typeof result.bounds.south).toBe('number');
+    expect(typeof result.bounds.east).toBe('number');
+    expect(typeof result.bounds.west).toBe('number');
+    
+    expect(typeof result.confidence).toBe('number');
+    expect(typeof result.estimatedAreaKm2).toBe('number');
+    expect(typeof result.completenessLevel).toBe('number');
+    expect(Array.isArray(result.suggestedRefinements)).toBe(true);
+    
+    // Check logical bounds
+    expect(result.bounds.north).toBeGreaterThan(result.bounds.south);
+    expect(result.bounds.east).toBeGreaterThan(result.bounds.west);
+    expect(result.confidence).toBeGreaterThan(0);
+    expect(result.confidence).toBeLessThanOrEqual(1);
+    expect(result.estimatedAreaKm2).toBeGreaterThan(0);
+    expect(result.completenessLevel).toBe(2); // 'dafe' has 2 syllables
+    
+    console.log(`Partial estimation for "dafe": center [${result.centerCoordinate[0]}, ${result.centerCoordinate[1]}], area ${result.estimatedAreaKm2.toFixed(1)} km², confidence ${result.confidence.toFixed(2)}`);
+  });
+  
+  test('Different completeness levels', () => {
+    const configName = 'ascii-sfodl';
+    
+    const tests = [
+      { partial: 'da', expected: 1 },
+      { partial: 'dafe', expected: 2 },
+      { partial: 'dafehe', expected: 3 },
+      { partial: 'dafeheho', expected: 4 }
+    ];
+    
+    for (const { partial, expected } of tests) {
+      const result = estimateLocationFromPartial(partial, configName);
+      expect(result.completenessLevel).toBe(expected);
+      
+      // More complete addresses should have higher confidence and smaller areas
+      if (expected > 1) {
+        const lessComplete = estimateLocationFromPartial(tests[expected - 2].partial, configName);
+        expect(result.confidence).toBeGreaterThan(lessComplete.confidence);
+        expect(result.estimatedAreaKm2).toBeLessThan(lessComplete.estimatedAreaKm2);
+      }
+      
+      console.log(`"${partial}": completeness ${result.completenessLevel}, confidence ${result.confidence.toFixed(2)}, area ${result.estimatedAreaKm2.toFixed(1)} km²`);
+    }
+  });
+  
+  test('Error handling for partial addresses', () => {
+    const configName = 'ascii-sfodl';
+    
+    // Empty partial address
+    expect(() => estimateLocationFromPartial('', configName)).toThrow();
+    
+    // Invalid syllable
+    expect(() => estimateLocationFromPartial('xx-yy', configName)).toThrow();
+    
+    // Too long (equal to max length - international standard has 9 syllables)
+    expect(() => estimateLocationFromPartial('dafehehodafehehoda', configName)).toThrow();
   });
 });

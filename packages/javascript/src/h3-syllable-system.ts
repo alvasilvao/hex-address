@@ -4,7 +4,9 @@ import {
   Coordinates, 
   RoundTripResult, 
   SystemInfo, 
-  ConversionError 
+  ConversionError,
+  GeographicBounds,
+  PartialLocationEstimate 
 } from './types';
 import { getConfig } from './config-loader';
 
@@ -170,6 +172,49 @@ export class H3SyllableSystem {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Estimate location and bounds from a partial syllable address
+   */
+  estimateLocationFromPartial(partialAddress: string): PartialLocationEstimate {
+    try {
+      // Parse partial address and validate format
+      const partialSyllables = this.parsePartialAddress(partialAddress);
+      
+      // Calculate address range (min and max complete addresses)
+      const addressRange = this.calculateAddressRange(partialSyllables);
+      
+      // Find valid addresses within the range, with smart fallback if initial addresses are invalid
+      const validRange = this.findValidAddressRange(addressRange.minAddress, addressRange.maxAddress, partialSyllables);
+      
+      // Convert both addresses to coordinates
+      const minCoords = this.syllableToCoordinate(validRange.minAddress);
+      const maxCoords = this.syllableToCoordinate(validRange.maxAddress);
+      
+      // Calculate geographic bounds and metrics
+      const bounds = this.calculateGeographicBounds(minCoords, maxCoords);
+      const center = this.calculateCenter(minCoords, maxCoords);
+      const areaKm2 = this.calculateAreaKm2(bounds);
+      const confidence = this.calculateConfidence(partialSyllables.length);
+      
+      // Get suggested refinements (next possible syllables)
+      const suggestedRefinements = this.getSuggestedRefinements(partialSyllables);
+      
+      return {
+        centerCoordinate: center,
+        bounds,
+        confidence,
+        estimatedAreaKm2: areaKm2,
+        completenessLevel: partialSyllables.length,
+        suggestedRefinements
+      };
+    } catch (error) {
+      if (error instanceof ConversionError) {
+        throw error;
+      }
+      throw new ConversionError(`Partial address estimation failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -485,37 +530,10 @@ export class H3SyllableSystem {
   }
 
   /**
-   * Format syllable address based on address length
+   * Format syllable address as concatenated string
    */
   private formatSyllableAddress(syllables: string[]): string {
-    const length = syllables.length;
-    
-    if (length === 6) {
-      // xx-xx-xx|xx-xx-xx
-      return `${syllables.slice(0, 3).join('-')}|${syllables.slice(3).join('-')}`;
-    } else if (length === 7) {
-      // xx-xx-xx-xx|xx-xx-xx
-      return `${syllables.slice(0, 4).join('-')}|${syllables.slice(4).join('-')}`;
-    } else if (length === 8) {
-      // xx-xx-xx-xx|xx-xx-xx-xx
-      return `${syllables.slice(0, 4).join('-')}|${syllables.slice(4).join('-')}`;
-    } else if (length === 9) {
-      // xx-xx-xx|xx-xx-xx|xx-xx-xx
-      return `${syllables.slice(0, 3).join('-')}|${syllables.slice(3, 6).join('-')}|${syllables.slice(6).join('-')}`;
-    } else if (length === 10) {
-      // xx-xx-xx|xx-xx-xx|xx-xx-xx-xx
-      return `${syllables.slice(0, 3).join('-')}|${syllables.slice(3, 6).join('-')}|${syllables.slice(6).join('-')}`;
-    } else if (length === 12) {
-      // xx-xx-xx|xx-xx-xx|xx-xx-xx|xx-xx-xx
-      return `${syllables.slice(0, 3).join('-')}|${syllables.slice(3, 6).join('-')}|${syllables.slice(6, 9).join('-')}|${syllables.slice(9).join('-')}`;
-    } else {
-      // Default: split into groups of 3, with remainder in last group
-      const groups: string[] = [];
-      for (let i = 0; i < length; i += 3) {
-        groups.push(syllables.slice(i, i + 3).join('-'));
-      }
-      return groups.join('|');
-    }
+    return syllables.join('');
   }
 
   /**
@@ -523,7 +541,13 @@ export class H3SyllableSystem {
    * Processes syllables from coarse to fine geography (most significant first)
    */
   private syllableAddressToIntegerIndex(syllableAddress: string): number {
-    const syllables = syllableAddress.toLowerCase().replace(/\|/g, '-').split('-');
+    const cleanAddress = syllableAddress.toLowerCase();
+    
+    // Parse 2-character syllables from concatenated string
+    const syllables: string[] = [];
+    for (let i = 0; i < cleanAddress.length; i += 2) {
+      syllables.push(cleanAddress.substring(i, i + 2));
+    }
     
     if (syllables.length !== this.config.address_length) {
       throw new Error(`Address must have ${this.config.address_length} syllables`);
@@ -545,5 +569,276 @@ export class H3SyllableSystem {
     }
     
     return integerValue;
+  }
+
+  /**
+   * Parse partial address into syllables array
+   */
+  private parsePartialAddress(partialAddress: string): string[] {
+    if (!partialAddress || partialAddress.trim() === '') {
+      throw new ConversionError('Partial address cannot be empty');
+    }
+
+    const cleanAddress = partialAddress.toLowerCase().trim();
+    
+    // Parse 2-character syllables from concatenated string
+    const syllables: string[] = [];
+    for (let i = 0; i < cleanAddress.length; i += 2) {
+      syllables.push(cleanAddress.substring(i, i + 2));
+    }
+    
+    if (syllables.length === 0) {
+      throw new ConversionError('No valid syllables found in partial address');
+    }
+
+    if (syllables.length >= this.config.address_length) {
+      throw new ConversionError(`Partial address cannot have ${syllables.length} or more syllables (max: ${this.config.address_length - 1})`);
+    }
+
+    // Validate each syllable
+    for (const syllable of syllables) {
+      if (!this.syllableToIndex.has(syllable)) {
+        throw new ConversionError(`Invalid syllable: ${syllable}`);
+      }
+    }
+
+    return syllables;
+  }
+
+  /**
+   * Calculate the range of complete addresses for a partial address
+   */
+  private calculateAddressRange(partialSyllables: string[]): { minAddress: string; maxAddress: string } {
+    const remainingSyllables = this.config.address_length - partialSyllables.length;
+    
+    if (remainingSyllables <= 0) {
+      throw new ConversionError('Partial address is already complete or too long');
+    }
+
+    // Get min and max syllables for padding
+    const { minSyllable, maxSyllable } = this.getMinMaxSyllables();
+    
+    // Create min address: pad with minimum syllables
+    const minSyllables = [...partialSyllables];
+    for (let i = 0; i < remainingSyllables; i++) {
+      minSyllables.push(minSyllable);
+    }
+    
+    // Create max address: pad with maximum syllables
+    const maxSyllables = [...partialSyllables];
+    for (let i = 0; i < remainingSyllables; i++) {
+      maxSyllables.push(maxSyllable);
+    }
+    
+    return {
+      minAddress: this.formatSyllableAddress(minSyllables),
+      maxAddress: this.formatSyllableAddress(maxSyllables)
+    };
+  }
+
+  /**
+   * Get the minimum and maximum syllables for the current config
+   */
+  private getMinMaxSyllables(): { minSyllable: string; maxSyllable: string } {
+    const syllables = Array.from(this.syllableToIndex.keys()).sort();
+    return {
+      minSyllable: syllables[0],
+      maxSyllable: syllables[syllables.length - 1]
+    };
+  }
+
+  /**
+   * Calculate geographic bounds from min and max coordinates
+   */
+  private calculateGeographicBounds(minCoords: Coordinates, maxCoords: Coordinates): GeographicBounds {
+    const [minLat, minLon] = minCoords;
+    const [maxLat, maxLon] = maxCoords;
+    
+    return {
+      north: Math.max(minLat, maxLat),
+      south: Math.min(minLat, maxLat),
+      east: Math.max(minLon, maxLon),
+      west: Math.min(minLon, maxLon)
+    };
+  }
+
+  /**
+   * Calculate center point from min and max coordinates
+   */
+  private calculateCenter(minCoords: Coordinates, maxCoords: Coordinates): Coordinates {
+    const [minLat, minLon] = minCoords;
+    const [maxLat, maxLon] = maxCoords;
+    
+    return [
+      (minLat + maxLat) / 2,
+      (minLon + maxLon) / 2
+    ];
+  }
+
+  /**
+   * Calculate area in square kilometers from geographic bounds
+   */
+  private calculateAreaKm2(bounds: GeographicBounds): number {
+    const latDiff = bounds.north - bounds.south;
+    const lonDiff = bounds.east - bounds.west;
+    
+    // Convert to approximate distance in kilometers
+    const avgLat = (bounds.north + bounds.south) / 2;
+    const latKm = latDiff * 111.32; // ~111.32 km per degree latitude
+    const lonKm = lonDiff * 111.32 * Math.cos(avgLat * Math.PI / 180); // Adjust for longitude at this latitude
+    
+    return latKm * lonKm;
+  }
+
+  /**
+   * Calculate confidence score based on completeness level
+   */
+  private calculateConfidence(completenessLevel: number): number {
+    // Higher completeness = higher confidence
+    // Scale from 0.1 (1 syllable) to 0.95 (7 syllables for 8-syllable addresses)
+    const maxLevel = this.config.address_length - 1;
+    const confidence = 0.1 + (completenessLevel / maxLevel) * 0.85;
+    return Math.min(0.95, Math.max(0.1, confidence));
+  }
+
+  /**
+   * Get suggested refinements (next possible syllables)
+   */
+  private getSuggestedRefinements(partialSyllables: string[]): string[] {
+    if (partialSyllables.length >= this.config.address_length - 1) {
+      return []; // Already almost complete, no meaningful refinements
+    }
+    
+    // Return all available syllables as potential next options
+    return Array.from(this.syllableToIndex.keys()).sort();
+  }
+
+  /**
+   * Find valid address range with smart fallback when min/max addresses are invalid
+   */
+  private findValidAddressRange(minAddress: string, maxAddress: string, partialSyllables: string[]): { minAddress: string; maxAddress: string } {
+    // First, try the exact range
+    const minValid = this.isValidSyllableAddress(minAddress);
+    const maxValid = this.isValidSyllableAddress(maxAddress);
+    
+    if (minValid && maxValid) {
+      // Perfect! Both addresses are valid
+      return { minAddress, maxAddress };
+    }
+    
+    // If either is invalid, try limited search (10 attempts max to avoid infinite loops)
+    const maxAttempts = 10;
+    let validMinAddress = minAddress;
+    let validMaxAddress = maxAddress;
+    
+    if (!minValid) {
+      let attempts = 0;
+      while (!this.isValidSyllableAddress(validMinAddress) && attempts < maxAttempts) {
+        validMinAddress = this.incrementAddress(validMinAddress, partialSyllables);
+        attempts++;
+      }
+    }
+    
+    if (!maxValid) {
+      let attempts = 0;
+      while (!this.isValidSyllableAddress(validMaxAddress) && attempts < maxAttempts) {
+        validMaxAddress = this.decrementAddress(validMaxAddress, partialSyllables);
+        attempts++;
+      }
+    }
+    
+    // Check if we found valid addresses
+    if (this.isValidSyllableAddress(validMinAddress) && this.isValidSyllableAddress(validMaxAddress)) {
+      return { minAddress: validMinAddress, maxAddress: validMaxAddress };
+    }
+    
+    // If still no luck, try fallback to shorter prefix
+    if (partialSyllables.length > 1) {
+      console.warn(`Address range for '${partialSyllables.join('')}' is unmappable, falling back to shorter prefix`);
+      const shorterPartial = partialSyllables.slice(0, -1);
+      const fallbackRange = this.calculateAddressRange(shorterPartial);
+      return this.findValidAddressRange(fallbackRange.minAddress, fallbackRange.maxAddress, shorterPartial);
+    }
+    
+    // Last resort: throw error with helpful message
+    throw new ConversionError(
+      `The partial address '${partialSyllables.join('')}' maps to an unmappable region of the H3 address space. ` +
+      `This occurs when syllable combinations don't correspond to valid geographic locations. ` +
+      `Try a different partial address or use a shorter prefix.`
+    );
+  }
+
+  /**
+   * Increment address intelligently from left to right with carry-over
+   */
+  private incrementAddress(address: string, partialSyllables: string[]): string {
+    const cleanAddress = address.toLowerCase();
+    
+    // Parse 2-character syllables from concatenated string
+    const syllables: string[] = [];
+    for (let i = 0; i < cleanAddress.length; i += 2) {
+      syllables.push(cleanAddress.substring(i, i + 2));
+    }
+    
+    const allSyllables = Array.from(this.syllableToIndex.keys()).sort();
+    const partialLength = partialSyllables.length;
+    
+    // Start incrementing from the first syllable after the partial prefix
+    for (let i = partialLength; i < syllables.length; i++) {
+      const currentSyllable = syllables[i];
+      const currentIndex = allSyllables.indexOf(currentSyllable);
+      
+      if (currentIndex < allSyllables.length - 1) {
+        // Can increment this syllable
+        syllables[i] = allSyllables[currentIndex + 1];
+        // Reset all syllables after this one to min values
+        for (let j = i + 1; j < syllables.length; j++) {
+          syllables[j] = allSyllables[0];
+        }
+        break;
+      } else {
+        // This syllable is at max, continue to next position
+        syllables[i] = allSyllables[0];
+      }
+    }
+    
+    return this.formatSyllableAddress(syllables);
+  }
+
+  /**
+   * Decrement address intelligently from left to right with borrow
+   */
+  private decrementAddress(address: string, partialSyllables: string[]): string {
+    const cleanAddress = address.toLowerCase();
+    
+    // Parse 2-character syllables from concatenated string
+    const syllables: string[] = [];
+    for (let i = 0; i < cleanAddress.length; i += 2) {
+      syllables.push(cleanAddress.substring(i, i + 2));
+    }
+    
+    const allSyllables = Array.from(this.syllableToIndex.keys()).sort();
+    const partialLength = partialSyllables.length;
+    
+    // Start decrementing from the first syllable after the partial prefix
+    for (let i = partialLength; i < syllables.length; i++) {
+      const currentSyllable = syllables[i];
+      const currentIndex = allSyllables.indexOf(currentSyllable);
+      
+      if (currentIndex > 0) {
+        // Can decrement this syllable
+        syllables[i] = allSyllables[currentIndex - 1];
+        // Reset all syllables after this one to max values
+        for (let j = i + 1; j < syllables.length; j++) {
+          syllables[j] = allSyllables[allSyllables.length - 1];
+        }
+        break;
+      } else {
+        // This syllable is at min, continue to next position
+        syllables[i] = allSyllables[allSyllables.length - 1];
+      }
+    }
+    
+    return this.formatSyllableAddress(syllables);
   }
 }

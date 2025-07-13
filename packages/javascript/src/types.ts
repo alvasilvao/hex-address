@@ -62,6 +62,28 @@ export interface SystemInfo {
 }
 
 /**
+ * Geographic bounds
+ */
+export interface GeographicBounds {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}
+
+/**
+ * Result from partial address location estimation
+ */
+export interface PartialLocationEstimate {
+  centerCoordinate: Coordinates;
+  bounds: GeographicBounds;
+  confidence: number;
+  estimatedAreaKm2: number;
+  completenessLevel: number;
+  suggestedRefinements?: string[];
+}
+
+/**
  * Custom error class for H3 syllable system errors
  */
 export class H3SyllableError extends Error {
