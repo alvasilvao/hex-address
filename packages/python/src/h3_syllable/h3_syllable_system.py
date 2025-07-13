@@ -75,6 +75,8 @@ class PartialLocationEstimate:
     estimated_area_km2: float
     completeness_level: int
     suggested_refinements: List[str] = None
+    sample_points: List[Tuple[float, float]] = None
+    comprehensive_mode: bool = False
 
 
 class H3SyllableSystem:
@@ -654,7 +656,7 @@ class H3SyllableSystem:
             # Any conversion error means the address doesn't exist
             return False
 
-    def estimate_location_from_partial(self, partial_address: str) -> PartialLocationEstimate:
+    def estimate_location_from_partial(self, partial_address: str, comprehensive: bool = False) -> PartialLocationEstimate:
         """
         Estimate location and bounds from a partial syllable address.
 
@@ -681,20 +683,36 @@ class H3SyllableSystem:
             # Parse partial address and validate format
             parsed = self._parse_partial_address(partial_address)
             
-            # Calculate address range (min and max complete addresses)
-            address_range = self._calculate_address_range(parsed)
+            sample_points = []
             
-            # Find valid addresses within the range, with smart fallback if initial addresses are invalid
-            valid_range = self._find_valid_address_range(address_range["min_address"], address_range["max_address"], parsed['complete_syllables'])
+            if comprehensive:
+                # Generate sample addresses using comprehensive sampling for the next level
+                sample_addresses = self._generate_comprehensive_samples(parsed)
+                
+                # Convert all sample addresses to coordinates
+                sample_points = [self.syllable_to_coordinate(addr) for addr in sample_addresses]
+                
+                # Calculate bounds from all sample points
+                bounds = self._calculate_bounds_from_points(sample_points)
+                center = self._calculate_center_from_points(sample_points)
+                area_km2 = self._calculate_area_km2(bounds)
+            else:
+                # Original approach: Calculate address range (min and max complete addresses)
+                address_range = self._calculate_address_range(parsed)
+                
+                # Find valid addresses within the range, with smart fallback if initial addresses are invalid
+                valid_range = self._find_valid_address_range(address_range["min_address"], address_range["max_address"], parsed['complete_syllables'])
+                
+                # Convert both addresses to coordinates
+                min_coords = self.syllable_to_coordinate(valid_range["min_address"])
+                max_coords = self.syllable_to_coordinate(valid_range["max_address"])
+                sample_points = [min_coords, max_coords]
+                
+                # Calculate geographic bounds and metrics
+                bounds = self._calculate_geographic_bounds(min_coords, max_coords)
+                center = self._calculate_center(min_coords, max_coords)
+                area_km2 = self._calculate_area_km2(bounds)
             
-            # Convert both addresses to coordinates
-            min_coords = self.syllable_to_coordinate(valid_range["min_address"])
-            max_coords = self.syllable_to_coordinate(valid_range["max_address"])
-            
-            # Calculate geographic bounds and metrics
-            bounds = self._calculate_geographic_bounds(min_coords, max_coords)
-            center = self._calculate_center(min_coords, max_coords)
-            area_km2 = self._calculate_area_km2(bounds)
             confidence = self._calculate_confidence(parsed)
             
             # Get suggested refinements (next possible syllables)
@@ -709,7 +727,9 @@ class H3SyllableSystem:
                 confidence=confidence,
                 estimated_area_km2=area_km2,
                 completeness_level=completeness_level,
-                suggested_refinements=suggested_refinements
+                suggested_refinements=suggested_refinements,
+                sample_points=sample_points if comprehensive else None,
+                comprehensive_mode=comprehensive
             )
         except Exception as e:
             if isinstance(e, ConversionError):
@@ -1038,6 +1058,89 @@ class H3SyllableSystem:
         
         return self._format_syllable_address(syllables)
 
+    def _generate_comprehensive_samples(self, parsed: Dict[str, any]) -> List[str]:
+        """Generate sample addresses using comprehensive sampling for all possible syllables at the next level."""
+        sample_addresses = []
+        all_syllables = list(self.syllable_to_index.keys())
+        
+        # Calculate how many syllables we need to complete the address
+        # For partial consonants, we count them as taking up one syllable position that needs completion
+        current_complete_length = len(parsed['complete_syllables'])
+        remaining_syllables = self.address_length - current_complete_length
+        
+        if remaining_syllables <= 0:
+            raise ConversionError('Address is already complete or too long for comprehensive sampling')
+
+        if parsed['partial_consonant']:
+            # Handle partial consonant case: try all vowels to complete the syllable
+            for vowel in self.vowels:
+                completed_syllable = parsed['partial_consonant'] + vowel
+                prefix = parsed['complete_syllables'] + [completed_syllable]
+                
+                # Add samples with different completions for remaining syllables
+                self._add_comprehensive_samples_for_prefix(prefix, remaining_syllables - 1, sample_addresses, all_syllables)
+        else:
+            # Handle complete syllables case: try all syllables for the next position
+            for next_syllable in all_syllables:
+                prefix = parsed['complete_syllables'] + [next_syllable]
+                
+                # Add samples with different completions for remaining syllables
+                self._add_comprehensive_samples_for_prefix(prefix, remaining_syllables - 1, sample_addresses, all_syllables)
+        
+        return sample_addresses
+
+    def _add_comprehensive_samples_for_prefix(self, prefix: List[str], remaining_syllables: int, sample_addresses: List[str], all_syllables: List[str]) -> None:
+        """Helper method to add sample addresses for a given prefix using comprehensive sampling."""
+        if remaining_syllables == 0:
+            # Complete address found
+            sample_addresses.append(self._format_syllable_address(prefix))
+            return
+
+        # For efficiency, we'll sample strategically rather than generating ALL possible combinations
+        # This prevents exponential explosion while still giving good geographic coverage
+        sample_strategies = [
+            lambda: all_syllables[0],  # Min syllable
+            lambda: all_syllables[len(all_syllables) // 4],  # 25% point
+            lambda: all_syllables[len(all_syllables) // 2],  # Middle
+            lambda: all_syllables[3 * len(all_syllables) // 4],  # 75% point
+            lambda: all_syllables[-1],  # Max syllable
+        ]
+
+        # Generate a sample address for each strategy
+        for get_next_syllable in sample_strategies:
+            completion = []
+            for _ in range(remaining_syllables):
+                completion.append(get_next_syllable())
+            sample_addresses.append(self._format_syllable_address(prefix + completion))
+
+    def _calculate_bounds_from_points(self, points: List[Tuple[float, float]]) -> GeographicBounds:
+        """Calculate geographic bounds from multiple coordinate points."""
+        if len(points) == 0:
+            raise ConversionError('Cannot calculate bounds from empty points array')
+
+        north = points[0][0]
+        south = points[0][0]
+        east = points[0][1]
+        west = points[0][1]
+
+        for lat, lon in points:
+            north = max(north, lat)
+            south = min(south, lat)
+            east = max(east, lon)
+            west = min(west, lon)
+
+        return GeographicBounds(north=north, south=south, east=east, west=west)
+
+    def _calculate_center_from_points(self, points: List[Tuple[float, float]]) -> Tuple[float, float]:
+        """Calculate center coordinate from multiple points."""
+        if len(points) == 0:
+            raise ConversionError('Cannot calculate center from empty points array')
+
+        avg_lat = sum(lat for lat, _ in points) / len(points)
+        avg_lon = sum(lon for _, lon in points) / len(points)
+
+        return (avg_lat, avg_lon)
+
 
 # Convenience functions for quick usage
 def coordinate_to_syllable(
@@ -1083,7 +1186,7 @@ def is_valid_syllable_address(syllable_address: str, config_name: str = None) ->
     return system.is_valid_syllable_address(syllable_address)
 
 
-def estimate_location_from_partial(partial_address: str, config_name: str = None) -> PartialLocationEstimate:
+def estimate_location_from_partial(partial_address: str, config_name: str = None, comprehensive: bool = False) -> PartialLocationEstimate:
     """
     Estimate location and bounds from a partial syllable address.
     
@@ -1104,7 +1207,7 @@ def estimate_location_from_partial(partial_address: str, config_name: str = None
         >>> print(f"Area: {estimate.estimated_area_km2:.1f} km²")
     """
     system = H3SyllableSystem(config_name)
-    return system.estimate_location_from_partial(partial_address)
+    return system.estimate_location_from_partial(partial_address, comprehensive)
 
 
 def list_available_configs() -> List[str]:

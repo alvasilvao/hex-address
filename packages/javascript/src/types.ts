@@ -81,6 +81,8 @@ export interface PartialLocationEstimate {
   estimatedAreaKm2: number;
   completenessLevel: number;
   suggestedRefinements?: string[];
+  samplePoints?: Coordinates[];
+  comprehensiveMode?: boolean;
 }
 
 /**

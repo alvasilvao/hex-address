@@ -89,10 +89,11 @@ export function isValidSyllableAddress(
  */
 export function estimateLocationFromPartial(
   partialAddress: string,
-  configName: string = 'ascii-dnqqwn'
+  configName: string = 'ascii-dnqqwn',
+  comprehensive: boolean = false
 ): PartialLocationEstimate {
   const system = new H3SyllableSystem(configName);
-  return system.estimateLocationFromPartial(partialAddress);
+  return system.estimateLocationFromPartial(partialAddress, comprehensive);
 }
 
 /**

@@ -178,25 +178,44 @@ export class H3SyllableSystem {
   /**
    * Estimate location and bounds from a partial syllable address
    */
-  estimateLocationFromPartial(partialAddress: string): PartialLocationEstimate {
+  estimateLocationFromPartial(partialAddress: string, comprehensive: boolean = false): PartialLocationEstimate {
     try {
       // Parse partial address and validate format
       const parsed = this.parsePartialAddress(partialAddress);
       
-      // Calculate address range (min and max complete addresses)
-      const addressRange = this.calculateAddressRange(parsed);
-      
-      // Find valid addresses within the range, with smart fallback if initial addresses are invalid
-      const validRange = this.findValidAddressRange(addressRange.minAddress, addressRange.maxAddress, parsed.completeSyllables);
-      
-      // Convert both addresses to coordinates
-      const minCoords = this.syllableToCoordinate(validRange.minAddress);
-      const maxCoords = this.syllableToCoordinate(validRange.maxAddress);
-      
-      // Calculate geographic bounds and metrics
-      const bounds = this.calculateGeographicBounds(minCoords, maxCoords);
-      const center = this.calculateCenter(minCoords, maxCoords);
-      const areaKm2 = this.calculateAreaKm2(bounds);
+      let samplePoints: Coordinates[] = [];
+      let bounds: GeographicBounds;
+      let center: Coordinates;
+      let areaKm2: number;
+
+      if (comprehensive) {
+        // Generate sample addresses using comprehensive sampling for the next level
+        const sampleAddresses = this.generateComprehensiveSamples(parsed);
+        
+        // Convert all sample addresses to coordinates
+        samplePoints = sampleAddresses.map(addr => this.syllableToCoordinate(addr));
+        
+        // Calculate bounds from all sample points
+        bounds = this.calculateBoundsFromPoints(samplePoints);
+        center = this.calculateCenterFromPoints(samplePoints);
+        areaKm2 = this.calculateAreaKm2(bounds);
+      } else {
+        // Original approach: Calculate address range (min and max complete addresses)
+        const addressRange = this.calculateAddressRange(parsed);
+        
+        // Find valid addresses within the range, with smart fallback if initial addresses are invalid
+        const validRange = this.findValidAddressRange(addressRange.minAddress, addressRange.maxAddress, parsed.completeSyllables);
+        
+        // Convert both addresses to coordinates
+        const minCoords = this.syllableToCoordinate(validRange.minAddress);
+        const maxCoords = this.syllableToCoordinate(validRange.maxAddress);
+        samplePoints = [minCoords, maxCoords];
+        
+        // Calculate geographic bounds and metrics
+        bounds = this.calculateGeographicBounds(minCoords, maxCoords);
+        center = this.calculateCenter(minCoords, maxCoords);
+        areaKm2 = this.calculateAreaKm2(bounds);
+      }
       const confidence = this.calculateConfidence(parsed);
       
       // Get suggested refinements (next possible syllables)
@@ -210,7 +229,9 @@ export class H3SyllableSystem {
         confidence,
         estimatedAreaKm2: areaKm2,
         completenessLevel,
-        suggestedRefinements
+        suggestedRefinements,
+        samplePoints: comprehensive ? samplePoints : undefined,
+        comprehensiveMode: comprehensive
       };
     } catch (error) {
       if (error instanceof ConversionError) {
@@ -896,5 +917,110 @@ export class H3SyllableSystem {
     }
     
     return this.formatSyllableAddress(syllables);
+  }
+
+  /**
+   * Generate sample addresses using comprehensive sampling for all possible syllables at the next level
+   */
+  private generateComprehensiveSamples(parsed: { completeSyllables: string[]; partialConsonant?: string }): string[] {
+    const sampleAddresses: string[] = [];
+    const allSyllables = Array.from(this.syllableToIndex.keys());
+    
+    // Calculate how many syllables we need to complete the address
+    // For partial consonants, we count them as taking up one syllable position that needs completion
+    const currentCompleteLength = parsed.completeSyllables.length;
+    const remainingSyllables = this.config.address_length - currentCompleteLength;
+    
+    if (remainingSyllables <= 0) {
+      throw new ConversionError('Address is already complete or too long for comprehensive sampling');
+    }
+
+    if (parsed.partialConsonant) {
+      // Handle partial consonant case: try all vowels to complete the syllable
+      for (const vowel of this.config.vowels) {
+        const completedSyllable = parsed.partialConsonant + vowel;
+        const prefix = [...parsed.completeSyllables, completedSyllable];
+        
+        // Add samples with different completions for remaining syllables
+        this.addComprehensiveSamplesForPrefix(prefix, remainingSyllables - 1, sampleAddresses, allSyllables);
+      }
+    } else {
+      // Handle complete syllables case: try all syllables for the next position
+      for (const nextSyllable of allSyllables) {
+        const prefix = [...parsed.completeSyllables, nextSyllable];
+        
+        // Add samples with different completions for remaining syllables
+        this.addComprehensiveSamplesForPrefix(prefix, remainingSyllables - 1, sampleAddresses, allSyllables);
+      }
+    }
+    
+    return sampleAddresses;
+  }
+
+  /**
+   * Helper method to add sample addresses for a given prefix using comprehensive sampling
+   */
+  private addComprehensiveSamplesForPrefix(prefix: string[], remainingSyllables: number, sampleAddresses: string[], allSyllables: string[]): void {
+    if (remainingSyllables === 0) {
+      // Complete address found
+      sampleAddresses.push(this.formatSyllableAddress(prefix));
+      return;
+    }
+
+    // For efficiency, we'll sample strategically rather than generating ALL possible combinations
+    // This prevents exponential explosion while still giving good geographic coverage
+    const sampleStrategies = [
+      () => allSyllables[0], // Min syllable
+      () => allSyllables[Math.floor(allSyllables.length / 4)], // 25% point
+      () => allSyllables[Math.floor(allSyllables.length / 2)], // Middle
+      () => allSyllables[Math.floor(3 * allSyllables.length / 4)], // 75% point
+      () => allSyllables[allSyllables.length - 1], // Max syllable
+    ];
+
+    // Generate a sample address for each strategy
+    for (const getNextSyllable of sampleStrategies) {
+      const completion: string[] = [];
+      for (let i = 0; i < remainingSyllables; i++) {
+        completion.push(getNextSyllable());
+      }
+      sampleAddresses.push(this.formatSyllableAddress([...prefix, ...completion]));
+    }
+  }
+
+  /**
+   * Calculate geographic bounds from multiple coordinate points
+   */
+  private calculateBoundsFromPoints(points: Coordinates[]): GeographicBounds {
+    if (points.length === 0) {
+      throw new ConversionError('Cannot calculate bounds from empty points array');
+    }
+
+    let north = points[0][0];
+    let south = points[0][0];
+    let east = points[0][1];
+    let west = points[0][1];
+
+    for (const [lat, lon] of points) {
+      north = Math.max(north, lat);
+      south = Math.min(south, lat);
+      east = Math.max(east, lon);
+      west = Math.min(west, lon);
+    }
+
+    return { north, south, east, west };
+  }
+
+  /**
+   * Calculate center coordinate from multiple points
+   */
+  private calculateCenterFromPoints(points: Coordinates[]): Coordinates {
+    if (points.length === 0) {
+      throw new ConversionError('Cannot calculate center from empty points array');
+    }
+
+    const avgLat = points.reduce((sum, [lat]) => sum + lat, 0) / points.length;
+    const avgLon = points.reduce((sum, [, lon]) => sum + lon, 0) / points.length;
+
+    return [avgLat, avgLon];
   }
 }
