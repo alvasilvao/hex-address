@@ -9,7 +9,7 @@ import argparse
 import sys
 
 from .config_loader import list_configs
-from .h3_syllable_system import H3SyllableSystem, is_valid_syllable_address
+from .h3_syllable_system import H3SyllableSystem, is_valid_address
 
 
 def main() -> None:
@@ -73,26 +73,26 @@ Examples:
 
         elif args.command == "coordinate":
             system = H3SyllableSystem(args.config)
-            address = system.coordinate_to_syllable(args.latitude, args.longitude)
+            address = system.coordinate_to_address(args.latitude, args.longitude)
             print(f"Coordinate: {args.latitude}, {args.longitude}")
             print(f"Address:    {address}")
             print(f"Config:     {args.config}")
 
         elif args.command == "syllable":
             system = H3SyllableSystem(args.config)
-            lat, lon = system.syllable_to_coordinate(args.address)
+            lat, lon = system.address_to_coordinate(args.address)
             print(f"Address:    {args.address}")
             print(f"Coordinate: {lat:.6f}, {lon:.6f}")
             print(f"Config:     {args.config}")
 
         elif args.command == "validate":
-            is_valid = is_valid_syllable_address(args.address, args.config)
+            is_valid = is_valid_address(args.address, args.config)
             status = "✅ VALID" if is_valid else "❌ INVALID"
             print(f"Address: {args.address}")
             print(f"Status:  {status}")
             if is_valid:
                 system = H3SyllableSystem(args.config)
-                lat, lon = system.syllable_to_coordinate(args.address)
+                lat, lon = system.address_to_coordinate(args.address)
                 print(f"Location: {lat:.6f}, {lon:.6f}")
             else:
                 print("This address doesn't exist (like '999999 Main Street')")

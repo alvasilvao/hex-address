@@ -11,15 +11,15 @@
  * const system = new H3SyllableSystem('ascii-dnqqwn');
  * 
  * // Convert coordinates to syllable address
- * const address = system.coordinateToSyllable(48.8566, 2.3522);
+ * const address = system.coordinateToAddress(48.8566, 2.3522);
  * console.log(address); // "dinenunukiwufeme"
  * 
  * // Convert back to coordinates
- * const [lat, lon] = system.syllableToCoordinate(address);
+ * const [lat, lon] = system.addressToCoordinate(address);
  * console.log(`${lat.toFixed(6)}, ${lon.toFixed(6)}`); // 48.856602, 2.352198
  * 
  * // Validate addresses
- * const isValid = system.isValidSyllableAddress(address);
+ * const isValid = system.isValidAddress(address);
  * console.log(isValid); // true
  * ```
  */
@@ -49,24 +49,24 @@ import { PartialLocationEstimate, AddressAnalysis } from './types';
 /**
  * Convert coordinates to syllable address using specified configuration
  */
-export function coordinateToSyllable(
+export function coordinateToAddress(
   latitude: number,
   longitude: number,
   configName: string = 'ascii-dnqqwn'
 ): string {
   const system = new H3SyllableSystem(configName);
-  return system.coordinateToSyllable(latitude, longitude);
+  return system.coordinateToAddress(latitude, longitude);
 }
 
 /**
  * Convert syllable address to coordinates using specified configuration
  */
-export function syllableToCoordinate(
+export function addressToCoordinate(
   syllableAddress: string,
   configName: string = 'ascii-dnqqwn'
 ): [number, number] {
   const system = new H3SyllableSystem(configName);
-  return system.syllableToCoordinate(syllableAddress);
+  return system.addressToCoordinate(syllableAddress);
 }
 
 /**
@@ -75,12 +75,12 @@ export function syllableToCoordinate(
  * Some syllable combinations don't map to actual H3 locations, just like
  * how "999999 Main Street" might not exist in the real world.
  */
-export function isValidSyllableAddress(
+export function isValidAddress(
   syllableAddress: string,
   configName: string = 'ascii-dnqqwn'
 ): boolean {
   const system = new H3SyllableSystem(configName);
-  return system.isValidSyllableAddress(syllableAddress);
+  return system.isValidAddress(syllableAddress);
 }
 
 /**
@@ -138,7 +138,6 @@ export function getConfigInfo(configName: string): any {
     vowels: config.vowels,
     totalSyllables: config.consonants.length * config.vowels.length,
     addressLength: config.address_length,
-    maxConsecutive: config.max_consecutive,
     h3Resolution: config.h3_resolution,
     addressSpace: (config.consonants.length * config.vowels.length) ** config.address_length,
   };
@@ -154,8 +153,8 @@ export function listAvailableConfigs(): string[] {
 /**
  * Create H3 system from a list of letters
  */
-export function createSystemFromLetters(letters: string[], maxConsecutive: number = 1): H3SyllableSystem {
-  return H3SyllableSystem.fromLetters(letters, maxConsecutive);
+export function createSystemFromLetters(letters: string[]): H3SyllableSystem {
+  return H3SyllableSystem.fromLetters(letters);
 }
 
 /**
@@ -198,7 +197,7 @@ export function findConfigsByLetters(letters: string[]): string[] {
 }
 
 // Package metadata
-export const version = '1.1.1';
+export const version = '1.2.0';
 export const author = 'Álvaro Silva';
 export const license = 'MIT';
 export const description = 'Convert GPS coordinates to memorable hex addresses';

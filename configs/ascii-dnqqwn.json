@@ -1,6 +1,6 @@
 {
   "name": "ascii-dnqqwn",
-  "description": "Basic Latin alphabet, 15 consonants, 5 vowels, 8 syllables, max 1 consecutive",
+  "description": "Basic Latin alphabet, 15 consonants, 5 vowels, 8 syllables",
   "consonants": [
     "d",
     "f",
@@ -26,7 +26,6 @@
     "u"
   ],
   "address_length": 8,
-  "max_consecutive": 1,
   "h3_resolution": 15,
   "metadata": {
     "alphabet": "ascii",
@@ -84,9 +83,9 @@
     "auto_generated": true,
     "generation_method": "international_standard",
     "total_syllables": 75,
-    "total_combinations": 986912191996800,
+    "total_combinations": 1001129150390625,
     "h3_target_space": 579202504213046,
-    "coverage_ratio": 1.7039156164176175,
-    "coverage_multiple": "1.70x"
+    "coverage_ratio": 1.728461363872804,
+    "coverage_multiple": "1.73x"
   }
 }

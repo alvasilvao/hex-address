@@ -116,7 +116,7 @@ export class H3SyllableSystem {
   /**
    * Convert geographic coordinates to syllable address
    */
-  coordinateToSyllable(latitude: number, longitude: number): string {
+  coordinateToAddress(latitude: number, longitude: number): string {
     try {
       this.validateCoordinates(latitude, longitude);
 
@@ -159,7 +159,7 @@ export class H3SyllableSystem {
   /**
    * Convert syllable address to geographic coordinates
    */
-  syllableToCoordinate(syllableAddress: string): Coordinates {
+  addressToCoordinate(syllableAddress: string): Coordinates {
     try {
       // Check cache
       if (this.cache.has(syllableAddress)) {
@@ -201,9 +201,9 @@ export class H3SyllableSystem {
   /**
    * Check if a syllable address maps to a real H3 location
    */
-  isValidSyllableAddress(syllableAddress: string): boolean {
+  isValidAddress(syllableAddress: string): boolean {
     try {
-      this.syllableToCoordinate(syllableAddress);
+      this.addressToCoordinate(syllableAddress);
       return true;
     } catch {
       return false;
@@ -243,12 +243,12 @@ export class H3SyllableSystem {
    */
   analyzeAddress(syllableAddress: string): AddressAnalysis {
     // Validate the original address
-    const isValid = this.isValidSyllableAddress(syllableAddress);
+    const isValid = this.isValidAddress(syllableAddress);
     let coordinates: Coordinates | undefined;
     
     if (isValid) {
       try {
-        coordinates = this.syllableToCoordinate(syllableAddress);
+        coordinates = this.addressToCoordinate(syllableAddress);
       } catch {
         // This shouldn't happen if isValid is true, but being safe
       }
@@ -275,9 +275,9 @@ export class H3SyllableSystem {
           const altAddress = this.reconstructAddressFormat(altChars.join(''), syllableAddress);
           
           // Check if alternative is valid
-          if (this.isValidSyllableAddress(altAddress)) {
+          if (this.isValidAddress(altAddress)) {
             try {
-              const altCoordinates = this.syllableToCoordinate(altAddress);
+              const altCoordinates = this.addressToCoordinate(altAddress);
               const distance = this.calculateDistanceKm(coordinates, altCoordinates);
               
               phoneticAlternatives.push({
@@ -347,7 +347,7 @@ export class H3SyllableSystem {
         const sampleAddresses = this.generateComprehensiveSamples(parsed);
         
         // Convert all sample addresses to coordinates
-        samplePoints = sampleAddresses.map(addr => this.syllableToCoordinate(addr));
+        samplePoints = sampleAddresses.map(addr => this.addressToCoordinate(addr));
         
         // Calculate bounds from all sample points
         bounds = this.calculateBoundsFromPoints(samplePoints);
@@ -361,8 +361,8 @@ export class H3SyllableSystem {
         const validRange = this.findValidAddressRange(addressRange.minAddress, addressRange.maxAddress, parsed.completeSyllables);
         
         // Convert both addresses to coordinates
-        const minCoords = this.syllableToCoordinate(validRange.minAddress);
-        const maxCoords = this.syllableToCoordinate(validRange.maxAddress);
+        const minCoords = this.addressToCoordinate(validRange.minAddress);
+        const maxCoords = this.addressToCoordinate(validRange.maxAddress);
         samplePoints = [minCoords, maxCoords];
         
         // Calculate geographic bounds and metrics
@@ -400,8 +400,8 @@ export class H3SyllableSystem {
    */
   testRoundTrip(latitude: number, longitude: number): RoundTripResult {
     try {
-      const syllableAddress = this.coordinateToSyllable(latitude, longitude);
-      const [resultLat, resultLon] = this.syllableToCoordinate(syllableAddress);
+      const syllableAddress = this.coordinateToAddress(latitude, longitude);
+      const [resultLat, resultLon] = this.addressToCoordinate(syllableAddress);
 
       // Calculate precision
       const latDiff = Math.abs(resultLat - latitude);
@@ -474,7 +474,7 @@ export class H3SyllableSystem {
   /**
    * Create H3 system from a list of letters
    */
-  static fromLetters(_letters: string[], _maxConsecutive: number = 1): H3SyllableSystem {
+  static fromLetters(_letters: string[]): H3SyllableSystem {
     // For now, use default config since we don't have dynamic config generation
     // This would need to be implemented with the config generation system
     throw new Error('Dynamic config generation not implemented. Use existing configurations.');
@@ -949,8 +949,8 @@ export class H3SyllableSystem {
    */
   private findValidAddressRange(minAddress: string, maxAddress: string, partialSyllables: string[]): { minAddress: string; maxAddress: string } {
     // First, try the exact range
-    const minValid = this.isValidSyllableAddress(minAddress);
-    const maxValid = this.isValidSyllableAddress(maxAddress);
+    const minValid = this.isValidAddress(minAddress);
+    const maxValid = this.isValidAddress(maxAddress);
     
     if (minValid && maxValid) {
       // Perfect! Both addresses are valid
@@ -964,7 +964,7 @@ export class H3SyllableSystem {
     
     if (!minValid) {
       let attempts = 0;
-      while (!this.isValidSyllableAddress(validMinAddress) && attempts < maxAttempts) {
+      while (!this.isValidAddress(validMinAddress) && attempts < maxAttempts) {
         validMinAddress = this.incrementAddress(validMinAddress, partialSyllables);
         attempts++;
       }
@@ -972,14 +972,14 @@ export class H3SyllableSystem {
     
     if (!maxValid) {
       let attempts = 0;
-      while (!this.isValidSyllableAddress(validMaxAddress) && attempts < maxAttempts) {
+      while (!this.isValidAddress(validMaxAddress) && attempts < maxAttempts) {
         validMaxAddress = this.decrementAddress(validMaxAddress, partialSyllables);
         attempts++;
       }
     }
     
     // Check if we found valid addresses
-    if (this.isValidSyllableAddress(validMinAddress) && this.isValidSyllableAddress(validMaxAddress)) {
+    if (this.isValidAddress(validMinAddress) && this.isValidAddress(validMaxAddress)) {
       return { minAddress: validMinAddress, maxAddress: validMaxAddress };
     }
     

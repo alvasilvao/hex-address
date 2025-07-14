@@ -154,7 +154,6 @@ class H3SyllableSystem:
     System Specifications:
     - H3 Resolution: Level 15 (~0.5 meter precision)
     - Character Set: Pure ASCII letters (a-z)
-    - Constraint: max_consecutive = 1 (no adjacent identical syllables)
     - Address Format: Dynamic pipe-separated groups (e.g., "je-ma-su-cu|du-ve-gu-ba")
     - Target Coverage: 122 × 7^15 = 579,202,504,213,046 H3 positions
     - Algorithm: Exact mathematical calculation for minimum syllables
@@ -187,7 +186,6 @@ class H3SyllableSystem:
         self.vowels = self.config.vowels
         self.total_syllables = len(self.consonants) * len(self.vowels)
         self.address_length = self.config.address_length
-        self.max_consecutive = self.config.max_consecutive
         self.address_space = self.total_syllables**self.address_length
 
         # H3 Level 15 exact cell count: 122 base cells × 7^15 hierarchical positions
@@ -346,7 +344,7 @@ class H3SyllableSystem:
             117,
         ]
 
-    def coordinate_to_syllable(self, latitude: float, longitude: float) -> str:
+    def coordinate_to_address(self, latitude: float, longitude: float) -> str:
         """
         Convert geographic coordinates to syllable address.
 
@@ -362,7 +360,7 @@ class H3SyllableSystem:
 
         Example:
             >>> system = H3SyllableSystem()
-            >>> address = system.coordinate_to_syllable(48.8566, 2.3522)
+            >>> address = system.coordinate_to_address(48.8566, 2.3522)
             >>> print(address)  # "je-ma-su-cu|du-ve-gu-ba"
         """
         try:
@@ -401,7 +399,7 @@ class H3SyllableSystem:
         except Exception:
             raise ConversionError("Coordinate conversion failed")
 
-    def syllable_to_coordinate(self, syllable_address: str) -> Tuple[float, float]:
+    def address_to_coordinate(self, syllable_address: str) -> Tuple[float, float]:
         """
         Convert syllable address to geographic coordinates.
 
@@ -416,7 +414,7 @@ class H3SyllableSystem:
 
         Example:
             >>> system = H3SyllableSystem()
-            >>> lat, lon = system.syllable_to_coordinate("je-ma-su-cu|du-ve-gu-ba")
+            >>> lat, lon = system.address_to_coordinate("je-ma-su-cu|du-ve-gu-ba")
             >>> print(f"{lat:.6f}, {lon:.6f}")
         """
         try:
@@ -658,10 +656,10 @@ class H3SyllableSystem:
         """
         try:
             # Forward conversion
-            syllable_address = self.coordinate_to_syllable(latitude, longitude)
+            syllable_address = self.coordinate_to_address(latitude, longitude)
 
             # Reverse conversion
-            result_lat, result_lon = self.syllable_to_coordinate(syllable_address)
+            result_lat, result_lon = self.address_to_coordinate(syllable_address)
 
             # Calculate precision
             lat_diff = abs(result_lat - latitude)
@@ -692,7 +690,7 @@ class H3SyllableSystem:
                 "error": str(e),
             }
 
-    def is_valid_syllable_address(self, syllable_address: str) -> bool:
+    def is_valid_address(self, syllable_address: str) -> bool:
         """
         Check if a syllable address maps to a real H3 location.
 
@@ -708,14 +706,14 @@ class H3SyllableSystem:
 
         Example:
             >>> system = H3SyllableSystem("ascii-etmhjj")
-            >>> system.is_valid_syllable_address("je-ma-su-cu|du-ve-gu-ba")
+            >>> system.is_valid_address("je-ma-su-cu|du-ve-gu-ba")
             True
-            >>> system.is_valid_syllable_address("ca-ce-va-po|ce-mi-to-cu")
+            >>> system.is_valid_address("ca-ce-va-po|ce-mi-to-cu")
             False
         """
         try:
             # Attempt conversion - if it succeeds, address is valid
-            self.syllable_to_coordinate(syllable_address)
+            self.address_to_coordinate(syllable_address)
             return True
         except Exception:
             # Any conversion error means the address doesn't exist
@@ -780,12 +778,12 @@ class H3SyllableSystem:
             ...     print(f"{alt.address} ({alt.distance_km}km away)")
         """
         # Validate the original address
-        is_valid = self.is_valid_syllable_address(syllable_address)
+        is_valid = self.is_valid_address(syllable_address)
         coordinates = None
         
         if is_valid:
             try:
-                coordinates = self.syllable_to_coordinate(syllable_address)
+                coordinates = self.address_to_coordinate(syllable_address)
             except Exception:
                 # This shouldn't happen if is_valid is True, but being safe
                 pass
@@ -810,9 +808,9 @@ class H3SyllableSystem:
                     alt_address = self._reconstruct_address_format(''.join(alt_chars), syllable_address)
                     
                     # Check if alternative is valid
-                    if self.is_valid_syllable_address(alt_address):
+                    if self.is_valid_address(alt_address):
                         try:
-                            alt_coordinates = self.syllable_to_coordinate(alt_address)
+                            alt_coordinates = self.address_to_coordinate(alt_address)
                             distance = self._calculate_distance_km(coordinates, alt_coordinates)
                             
                             change = PhoneticChange(
@@ -875,7 +873,7 @@ class H3SyllableSystem:
                 sample_addresses = self._generate_comprehensive_samples(parsed)
                 
                 # Convert all sample addresses to coordinates
-                sample_points = [self.syllable_to_coordinate(addr) for addr in sample_addresses]
+                sample_points = [self.address_to_coordinate(addr) for addr in sample_addresses]
                 
                 # Calculate bounds from all sample points
                 bounds = self._calculate_bounds_from_points(sample_points)
@@ -889,8 +887,8 @@ class H3SyllableSystem:
                 valid_range = self._find_valid_address_range(address_range["min_address"], address_range["max_address"], parsed['complete_syllables'])
                 
                 # Convert both addresses to coordinates
-                min_coords = self.syllable_to_coordinate(valid_range["min_address"])
-                max_coords = self.syllable_to_coordinate(valid_range["max_address"])
+                min_coords = self.address_to_coordinate(valid_range["min_address"])
+                max_coords = self.address_to_coordinate(valid_range["max_address"])
                 sample_points = [min_coords, max_coords]
                 
                 # Calculate geographic bounds and metrics
@@ -935,7 +933,6 @@ class H3SyllableSystem:
             "vowels": self.config.vowels,
             "total_syllables": self.config.total_syllables,
             "address_length": self.config.address_length,
-            "max_consecutive": self.config.max_consecutive,
             "address_space": self.config.address_space,
             "h3_resolution": self.config.h3_resolution,
             "is_auto_generated": self.config.is_auto_generated,
@@ -944,19 +941,18 @@ class H3SyllableSystem:
 
     @classmethod
     def from_letters(
-        cls, letters: List[str], max_consecutive: int = 2
+        cls, letters: List[str]
     ) -> "H3SyllableSystem":
         """
         Create H3 system from a list of letters.
 
         Args:
             letters: List of letters to use (both consonants and vowels)
-            max_consecutive: Maximum consecutive identical sounds
 
         Returns:
             H3SyllableSystem instance
         """
-        return cls(letters=letters, max_consecutive=max_consecutive)
+        return cls(letters=letters)
 
     @classmethod
     def suggest_for_language(
@@ -1149,8 +1145,8 @@ class H3SyllableSystem:
     def _find_valid_address_range(self, min_address: str, max_address: str, partial_syllables: List[str]) -> Dict[str, str]:
         """Find valid address range with smart fallback when min/max addresses are invalid."""
         # First, try the exact range
-        min_valid = self.is_valid_syllable_address(min_address)
-        max_valid = self.is_valid_syllable_address(max_address)
+        min_valid = self.is_valid_address(min_address)
+        max_valid = self.is_valid_address(max_address)
         
         if min_valid and max_valid:
             # Perfect! Both addresses are valid
@@ -1163,18 +1159,18 @@ class H3SyllableSystem:
         
         if not min_valid:
             attempts = 0
-            while not self.is_valid_syllable_address(valid_min_address) and attempts < max_attempts:
+            while not self.is_valid_address(valid_min_address) and attempts < max_attempts:
                 valid_min_address = self._increment_address(valid_min_address, partial_syllables)
                 attempts += 1
         
         if not max_valid:
             attempts = 0
-            while not self.is_valid_syllable_address(valid_max_address) and attempts < max_attempts:
+            while not self.is_valid_address(valid_max_address) and attempts < max_attempts:
                 valid_max_address = self._decrement_address(valid_max_address, partial_syllables)
                 attempts += 1
         
         # Check if we found valid addresses
-        if self.is_valid_syllable_address(valid_min_address) and self.is_valid_syllable_address(valid_max_address):
+        if self.is_valid_address(valid_min_address) and self.is_valid_address(valid_max_address):
             return {"min_address": valid_min_address, "max_address": valid_max_address}
         
         # If still no luck, try fallback to shorter prefix
@@ -1328,7 +1324,7 @@ class H3SyllableSystem:
 
 
 # Convenience functions for quick usage
-def coordinate_to_syllable(
+def coordinate_to_address(
     latitude: float,
     longitude: float,
     config_name: str = None,
@@ -1336,18 +1332,18 @@ def coordinate_to_syllable(
 ) -> str:
     """Convert coordinates to syllable address using specified configuration."""
     system = H3SyllableSystem(config_name=config_name)
-    return system.coordinate_to_syllable(latitude, longitude)
+    return system.coordinate_to_address(latitude, longitude)
 
 
-def syllable_to_coordinate(
+def address_to_coordinate(
     syllable_address: str, config_name: str = None, letters: List[str] = None
 ) -> Tuple[float, float]:
     """Convert syllable address to coordinates using specified configuration."""
     system = H3SyllableSystem(config_name=config_name)
-    return system.syllable_to_coordinate(syllable_address)
+    return system.address_to_coordinate(syllable_address)
 
 
-def is_valid_syllable_address(syllable_address: str, config_name: str = None) -> bool:
+def is_valid_address(syllable_address: str, config_name: str = None) -> bool:
     """
     Check if syllable address corresponds to a real location.
 
@@ -1368,7 +1364,7 @@ def is_valid_syllable_address(syllable_address: str, config_name: str = None) ->
         False
     """
     system = H3SyllableSystem(config_name)
-    return system.is_valid_syllable_address(syllable_address)
+    return system.is_valid_address(syllable_address)
 
 
 def estimate_location_from_partial(partial_address: str, config_name: str = None, comprehensive: bool = False) -> PartialLocationEstimate:
@@ -1438,14 +1434,13 @@ def get_config_info(config_name: str) -> Dict:
         "vowels": config.vowels,
         "total_syllables": len(config.consonants) * len(config.vowels),
         "address_length": config.address_length,
-        "max_consecutive": config.max_consecutive,
         "address_space": (len(config.consonants) * len(config.vowels))
         ** config.address_length,
     }
 
 
 def create_system_from_letters(
-    letters: List[str], max_consecutive: int = 2
+    letters: List[str]
 ) -> "H3SyllableSystem":
     """
     Create H3 system from a list of letters.
@@ -1457,7 +1452,7 @@ def create_system_from_letters(
     Returns:
         H3SyllableSystem instance
     """
-    return H3SyllableSystem.from_letters(letters, max_consecutive)
+    return H3SyllableSystem.from_letters(letters)
 
 
 def suggest_system_for_language(

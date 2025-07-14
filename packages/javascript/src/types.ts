@@ -24,7 +24,6 @@ export interface SyllableConfig {
   consonants: string[];
   vowels: string[];
   address_length: number;
-  max_consecutive: number;
   h3_resolution: number;
   metadata?: ConfigMetadata;
 }

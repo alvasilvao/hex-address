@@ -1,5 +1,5 @@
 // Integration tests using the built package
-const { coordinateToSyllable, syllableToCoordinate, listAvailableConfigs, estimateLocationFromPartial } = require('../dist/index.js');
+const { coordinateToAddress, addressToCoordinate, listAvailableConfigs, estimateLocationFromPartial } = require('../dist/index.js');
 
 describe('Round-trip conversion tests', () => {
   const testCoordinates = [
@@ -20,7 +20,7 @@ describe('Round-trip conversion tests', () => {
     const configName = 'ascii-dnqqwn'; // International standard config (15C×5V, 8 syllables)
     
     // Step 1: Convert coordinates to syllable address
-    const syllableAddress = coordinateToSyllable(lat, lng, configName);
+    const syllableAddress = coordinateToAddress(lat, lng, configName);
     console.log(`Coordinate [${lat}, ${lng}] -> "${syllableAddress}"`);
     
     // Verify syllable address is a string
@@ -28,7 +28,7 @@ describe('Round-trip conversion tests', () => {
     expect(syllableAddress.length).toBeGreaterThan(0);
     
     // Step 2: Convert syllable address back to coordinates
-    const [resultLat, resultLng] = syllableToCoordinate(syllableAddress, configName);
+    const [resultLat, resultLng] = addressToCoordinate(syllableAddress, configName);
     console.log(`"${syllableAddress}" -> [${resultLat}, ${resultLng}]`);
     
     // Step 3: Verify round-trip accuracy
@@ -49,8 +49,8 @@ describe('Round-trip conversion tests', () => {
     const configName = 'ascii-dnqqwn'; // International standard config
     
     for (const [lat, lng] of testCoordinates.slice(0, 3)) { // Test first 3 to keep it fast
-      const syllableAddress = coordinateToSyllable(lat, lng, configName);
-      const [resultLat, resultLng] = syllableToCoordinate(syllableAddress, configName);
+      const syllableAddress = coordinateToAddress(lat, lng, configName);
+      const [resultLat, resultLng] = addressToCoordinate(syllableAddress, configName);
       
       const latDiff = Math.abs(resultLat - lat);
       const lngDiff = Math.abs(resultLng - lng);
@@ -68,8 +68,8 @@ describe('Round-trip conversion tests', () => {
     const configName = 'ascii-dnqqwn';
     
     {
-      const syllableAddress = coordinateToSyllable(lat, lng, configName);
-      const [resultLat, resultLng] = syllableToCoordinate(syllableAddress, configName);
+      const syllableAddress = coordinateToAddress(lat, lng, configName);
+      const [resultLat, resultLng] = addressToCoordinate(syllableAddress, configName);
       
       console.log(`${configName}: [${lat}, ${lng}] -> "${syllableAddress}" -> [${resultLat}, ${resultLng}]`);
       
@@ -80,15 +80,15 @@ describe('Round-trip conversion tests', () => {
 
   test('Error handling', () => {
     expect(() => syllableToCoordinate('invalid-address')).toThrow();
-    expect(() => coordinateToSyllable(91, 0)).toThrow(); // Invalid latitude
+    expect(() => coordinateToAddress(91, 0)).toThrow(); // Invalid latitude
   });
 
   test('Consistency test', () => {
     const config = 'ascii-dnqqwn'; // International standard config
     const coords = [48.8566, 2.3522];
     
-    const address1 = coordinateToSyllable(coords[0], coords[1], config);
-    const address2 = coordinateToSyllable(coords[0], coords[1], config);
+    const address1 = coordinateToAddress(coords[0], coords[1], config);
+    const address2 = coordinateToAddress(coords[0], coords[1], config);
     
     expect(address1).toBe(address2);
   });

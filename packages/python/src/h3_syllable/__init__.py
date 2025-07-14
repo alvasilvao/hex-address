@@ -13,21 +13,21 @@ Features:
 - International pronunciation optimization
 
 Example:
-    >>> from hex_address import H3SyllableSystem, is_valid_syllable_address
+    >>> from hex_address import H3SyllableSystem, is_valid_address
     >>>
     >>> # Initialize system (uses ascii-dnqqwn by default)
     >>> system = H3SyllableSystem()
     >>>
     >>> # Convert coordinate to syllable address
-    >>> address = system.coordinate_to_syllable(48.8566, 2.3522)
+    >>> address = system.coordinate_to_address(48.8566, 2.3522)
     >>> print(address)  # 8-syllable address
     >>>
     >>> # Convert back to coordinates
-    >>> lat, lon = system.syllable_to_coordinate(address)
+    >>> lat, lon = system.address_to_coordinate(address)
     >>> print(f"{lat:.6f}, {lon:.6f}")  # 48.856602, 2.352198
     >>>
     >>> # Validate addresses (some combinations don't exist)
-    >>> is_valid = system.is_valid_syllable_address(address)
+    >>> is_valid = system.is_valid_address(address)
     >>> print(is_valid)  # True
 """
 
@@ -48,15 +48,15 @@ from .h3_syllable_system import (
     PhoneticChange,
     SystemInfo,
     analyze_address,
-    coordinate_to_syllable,
+    coordinate_to_address,
     estimate_location_from_partial,
     get_config_info,
-    is_valid_syllable_address,
+    is_valid_address,
     list_available_configs,
-    syllable_to_coordinate,
+    address_to_coordinate,
 )
 
-__version__ = "1.1.2"
+__version__ = "1.2.0"
 __author__ = "Álvaro Silva"
 __license__ = "MIT"
 __description__ = "Convert GPS coordinates to memorable hex addresses"
@@ -77,9 +77,9 @@ __all__ = [
     "H3SyllableError",
     "ConversionError",
     # Convenience functions
-    "coordinate_to_syllable",
-    "syllable_to_coordinate",
-    "is_valid_syllable_address",
+    "coordinate_to_address",
+    "address_to_coordinate",
+    "is_valid_address",
     "estimate_location_from_partial",
     "analyze_address",
     # Configuration functions

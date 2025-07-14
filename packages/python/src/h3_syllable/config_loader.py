@@ -21,7 +21,6 @@ class SyllableConfig:
     consonants: List[str]
     vowels: List[str]
     address_length: int
-    max_consecutive: int
     h3_resolution: int = 15
     metadata: Dict = None
 
@@ -137,7 +136,6 @@ class ConfigLoader:
             "consonants": config.consonants,
             "vowels": config.vowels,
             "address_length": config.address_length,
-            "max_consecutive": config.max_consecutive,
             "h3_resolution": config.h3_resolution,
         }
 
@@ -190,7 +188,6 @@ class ConfigLoader:
         consonant_count: int = None,
         vowel_count: int = None,
         address_length: int = None,
-        max_consecutive: int = None,
     ) -> List[str]:
         """Find configurations matching specific criteria."""
         matching_configs = []
@@ -207,11 +204,6 @@ class ConfigLoader:
                 match = False
             if address_length is not None and config.address_length != address_length:
                 match = False
-            if (
-                max_consecutive is not None
-                and config.max_consecutive != max_consecutive
-            ):
-                match = False
 
             if match:
                 matching_configs.append(name)
@@ -224,17 +216,11 @@ class ConfigLoader:
             "total_configs": len(self._configs),
             "auto_generated": len(self.list_auto_generated_configs()),
             "manual": len(self.list_manual_configs()),
-            "by_consecutive": {},
             "by_address_length": {},
             "by_syllable_count": {},
         }
 
         for config in self._configs.values():
-            # Count by max consecutive
-            max_cons = config.max_consecutive
-            stats["by_consecutive"][max_cons] = (
-                stats["by_consecutive"].get(max_cons, 0) + 1
-            )
 
             # Count by address length
             addr_len = config.address_length
