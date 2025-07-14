@@ -28,6 +28,38 @@ import h3
 from .config_loader import get_config
 
 
+# Comprehensive phonetic confusion database
+# Maps characters to their phonetically similar alternatives across different languages
+PHONETIC_CONFUSIONS = {
+    # Common English consonant confusions
+    'd': ['t'],
+    't': ['d'], 
+    'f': ['v'],
+    'v': ['f'],
+    's': ['z'],
+    'z': ['s'],
+    'm': ['n'],
+    'n': ['m'],
+    'p': ['b'],
+    'b': ['p'],
+    'k': ['c', 'q'],
+    'c': ['k'],
+    'g': ['j'],
+    'j': ['g'],
+    'w': ['v'],  # German w/v confusion
+    'l': ['r'],  # For non-Japanese configs
+    'r': ['l'],
+    'x': ['s'],  # Spanish x/s confusion
+    'y': ['j'],  # Spanish y/j confusion
+    
+    # Vowel confusions (less common but can occur)
+    'e': ['i'],  # Common in many languages
+    'i': ['e'],
+    'o': ['u'],  # Some dialects
+    'u': ['o']
+}
+
+
 class H3SyllableError(Exception):
     """Base exception for H3 syllable system errors."""
 
@@ -77,6 +109,39 @@ class PartialLocationEstimate:
     suggested_refinements: List[str] = None
     sample_points: List[Tuple[float, float]] = None
     comprehensive_mode: bool = False
+
+
+@dataclass
+class PhoneticChange:
+    """A single character change in a phonetic alternative."""
+    
+    position: int
+    from_char: str  # 'from' is a Python keyword, so using 'from_char'
+    to_char: str    # 'to' is not a keyword but keeping consistent
+
+
+@dataclass
+class PhoneticAlternative:
+    """A phonetic alternative to the original address."""
+    
+    address: str
+    coordinates: Tuple[float, float]
+    distance_km: float
+    change: PhoneticChange
+
+
+@dataclass
+class AddressAnalysis:
+    """Result from address analysis including phonetic alternatives."""
+    
+    is_valid: bool
+    address: str
+    coordinates: Tuple[float, float] = None
+    phonetic_alternatives: List[PhoneticAlternative] = None
+
+    def __post_init__(self):
+        if self.phonetic_alternatives is None:
+            self.phonetic_alternatives = []
 
 
 class H3SyllableSystem:
@@ -656,6 +721,126 @@ class H3SyllableSystem:
             # Any conversion error means the address doesn't exist
             return False
 
+    def _get_valid_phonetic_substitutions(self, char: str) -> List[str]:
+        """Get valid phonetic substitutions for a character based on current config."""
+        all_substitutions = PHONETIC_CONFUSIONS.get(char, [])
+        valid_chars = self.config.consonants + self.config.vowels
+        
+        # Only return substitutions that exist in current config
+        return [sub for sub in all_substitutions if sub in valid_chars]
+
+    def _calculate_distance_km(self, coord1: Tuple[float, float], coord2: Tuple[float, float]) -> float:
+        """Calculate distance between two coordinates in kilometers."""
+        lat1, lng1 = coord1
+        lat2, lng2 = coord2
+        
+        R = 6371  # Earth's radius in kilometers
+        d_lat = math.radians(lat2 - lat1)
+        d_lng = math.radians(lng2 - lng1)
+        a = (math.sin(d_lat/2) * math.sin(d_lat/2) +
+             math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
+             math.sin(d_lng/2) * math.sin(d_lng/2))
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+        return R * c
+
+    def _reconstruct_address_format(self, clean_chars: str, original_format: str) -> str:
+        """Reconstruct address format (with separators) from clean character string."""
+        result = ''
+        clean_index = 0
+        
+        for char in original_format:
+            if char in ['-', '|']:
+                result += char
+            else:
+                result += clean_chars[clean_index]
+                clean_index += 1
+                
+        return result
+
+    def analyze_address(self, syllable_address: str) -> AddressAnalysis:
+        """
+        Analyze a syllable address and provide phonetic alternatives.
+        
+        This function validates the address and generates alternative addresses
+        for characters that could have been misheard due to phonetic similarity.
+        Useful for confirming addresses received verbally.
+        
+        Args:
+            syllable_address: Syllable address string to analyze
+            
+        Returns:
+            AddressAnalysis with validation result and phonetic alternatives
+            
+        Example:
+            >>> system = H3SyllableSystem()
+            >>> analysis = system.analyze_address("de-ma-su-cu|du-ve-gu-ba")
+            >>> print(analysis.is_valid)
+            True
+            >>> for alt in analysis.phonetic_alternatives:
+            ...     print(f"{alt.address} ({alt.distance_km}km away)")
+        """
+        # Validate the original address
+        is_valid = self.is_valid_syllable_address(syllable_address)
+        coordinates = None
+        
+        if is_valid:
+            try:
+                coordinates = self.syllable_to_coordinate(syllable_address)
+            except Exception:
+                # This shouldn't happen if is_valid is True, but being safe
+                pass
+
+        phonetic_alternatives = []
+
+        # Only generate alternatives if we have valid coordinates to compare distance
+        if coordinates:
+            # Remove separators for character-by-character analysis
+            clean_address = syllable_address.replace('-', '').replace('|', '')
+            
+            # For each character position, try phonetic substitutions
+            for i, char in enumerate(clean_address):
+                substitutions = self._get_valid_phonetic_substitutions(char)
+                
+                for substitution in substitutions:
+                    # Create alternative address
+                    alt_chars = list(clean_address)
+                    alt_chars[i] = substitution
+                    
+                    # Reconstruct address with original formatting
+                    alt_address = self._reconstruct_address_format(''.join(alt_chars), syllable_address)
+                    
+                    # Check if alternative is valid
+                    if self.is_valid_syllable_address(alt_address):
+                        try:
+                            alt_coordinates = self.syllable_to_coordinate(alt_address)
+                            distance = self._calculate_distance_km(coordinates, alt_coordinates)
+                            
+                            change = PhoneticChange(
+                                position=i,
+                                from_char=char,
+                                to_char=substitution
+                            )
+                            
+                            phonetic_alternatives.append(PhoneticAlternative(
+                                address=alt_address,
+                                coordinates=alt_coordinates,
+                                distance_km=round(distance, 2),  # Round to 2 decimal places
+                                change=change
+                            ))
+                        except Exception:
+                            # Alternative address is not convertible, skip it
+                            pass
+
+        # Sort alternatives by distance (closest first)
+        phonetic_alternatives.sort(key=lambda x: x.distance_km)
+
+        return AddressAnalysis(
+            is_valid=is_valid,
+            address=syllable_address,
+            coordinates=coordinates,
+            phonetic_alternatives=phonetic_alternatives
+        )
+
     def estimate_location_from_partial(self, partial_address: str, comprehensive: bool = False) -> PartialLocationEstimate:
         """
         Estimate location and bounds from a partial syllable address.
@@ -1208,6 +1393,32 @@ def estimate_location_from_partial(partial_address: str, config_name: str = None
     """
     system = H3SyllableSystem(config_name)
     return system.estimate_location_from_partial(partial_address, comprehensive)
+
+
+def analyze_address(syllable_address: str, config_name: str = None) -> AddressAnalysis:
+    """
+    Analyze a syllable address and provide phonetic alternatives.
+    
+    This function validates the address and generates alternative addresses
+    for characters that could have been misheard due to phonetic similarity.
+    Useful for confirming addresses received verbally.
+    
+    Args:
+        syllable_address: Syllable address string to analyze
+        config_name: Configuration to use for analysis
+        
+    Returns:
+        AddressAnalysis with validation result and phonetic alternatives
+        
+    Example:
+        >>> analysis = analyze_address("de-ma-su-cu|du-ve-gu-ba")
+        >>> print(analysis.is_valid)
+        True
+        >>> for alt in analysis.phonetic_alternatives:
+        ...     print(f"{alt.address} ({alt.distance_km}km away)")
+    """
+    system = H3SyllableSystem(config_name)
+    return system.analyze_address(syllable_address)
 
 
 def list_available_configs() -> List[str]:

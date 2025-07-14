@@ -36,12 +36,15 @@ export {
   ConversionError,
   GeographicBounds,
   PartialLocationEstimate,
+  AddressAnalysis,
+  PhoneticAlternative,
+  PhoneticChange,
 } from './types';
 
 // Convenience functions
 import { H3SyllableSystem } from './h3-syllable-system';
 import { listConfigs } from './config-loader';
-import { PartialLocationEstimate } from './types';
+import { PartialLocationEstimate, AddressAnalysis } from './types';
 
 /**
  * Convert coordinates to syllable address using specified configuration
@@ -94,6 +97,31 @@ export function estimateLocationFromPartial(
 ): PartialLocationEstimate {
   const system = new H3SyllableSystem(configName);
   return system.estimateLocationFromPartial(partialAddress, comprehensive);
+}
+
+/**
+ * Analyze a syllable address and provide phonetic alternatives
+ * 
+ * This function validates the address and generates alternative addresses
+ * for characters that could have been misheard due to phonetic similarity.
+ * Useful for confirming addresses received verbally.
+ * 
+ * @example
+ * ```typescript
+ * const analysis = analyzeAddress("de-ma-su-cu|du-ve-gu-ba");
+ * console.log(analysis.isValid); // true
+ * console.log(analysis.phoneticAlternatives.length); // Number of valid alternatives
+ * analysis.phoneticAlternatives.forEach(alt => {
+ *   console.log(`${alt.address} (${alt.distanceKm}km away, ${alt.change.from}→${alt.change.to})`);
+ * });
+ * ```
+ */
+export function analyzeAddress(
+  syllableAddress: string,
+  configName: string = 'ascii-dnqqwn'
+): AddressAnalysis {
+  const system = new H3SyllableSystem(configName);
+  return system.analyzeAddress(syllableAddress);
 }
 
 /**

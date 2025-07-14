@@ -38,12 +38,16 @@ from .config_loader import (
     list_configs,
 )
 from .h3_syllable_system import (
+    AddressAnalysis,
     ConversionError,
     GeographicBounds,
     H3SyllableError,
     H3SyllableSystem,
     PartialLocationEstimate,
+    PhoneticAlternative,
+    PhoneticChange,
     SystemInfo,
+    analyze_address,
     coordinate_to_syllable,
     estimate_location_from_partial,
     get_config_info,
@@ -52,7 +56,7 @@ from .h3_syllable_system import (
     syllable_to_coordinate,
 )
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 __author__ = "Álvaro Silva"
 __license__ = "MIT"
 __description__ = "Convert GPS coordinates to memorable hex addresses"
@@ -65,6 +69,10 @@ __all__ = [
     "SystemInfo",
     "GeographicBounds",
     "PartialLocationEstimate",
+    # Address analysis classes
+    "AddressAnalysis",
+    "PhoneticAlternative",
+    "PhoneticChange",
     # Exceptions
     "H3SyllableError",
     "ConversionError",
@@ -73,6 +81,7 @@ __all__ = [
     "syllable_to_coordinate",
     "is_valid_syllable_address",
     "estimate_location_from_partial",
+    "analyze_address",
     # Configuration functions
     "get_config",
     "get_all_configs",

@@ -6,9 +6,44 @@ import {
   SystemInfo, 
   ConversionError,
   GeographicBounds,
-  PartialLocationEstimate 
+  PartialLocationEstimate,
+  AddressAnalysis,
+  PhoneticAlternative
 } from './types';
 import { getConfig } from './config-loader';
+
+/**
+ * Comprehensive phonetic confusion database
+ * Maps characters to their phonetically similar alternatives across different languages
+ */
+const PHONETIC_CONFUSIONS: Record<string, string[]> = {
+  // Common English consonant confusions
+  'd': ['t'],
+  't': ['d'], 
+  'f': ['v'],
+  'v': ['f'],
+  's': ['z'],
+  'z': ['s'],
+  'm': ['n'],
+  'n': ['m'],
+  'p': ['b'],
+  'b': ['p'],
+  'k': ['c', 'q'],
+  'c': ['k'],
+  'g': ['j'],
+  'j': ['g'],
+  'w': ['v'],  // German w/v confusion
+  'l': ['r'],  // For non-Japanese configs
+  'r': ['l'],
+  'x': ['s'],  // Spanish x/s confusion
+  'y': ['j'],  // Spanish y/j confusion
+  
+  // Vowel confusions (less common but can occur)
+  'e': ['i'],  // Common in many languages
+  'i': ['e'],
+  'o': ['u'],  // Some dialects
+  'u': ['o']
+};
 
 /**
  * H3 Syllable Address System
@@ -173,6 +208,125 @@ export class H3SyllableSystem {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Get valid phonetic substitutions for a character based on current config
+   */
+  private getValidPhoneticSubstitutions(char: string): string[] {
+    const allSubstitutions = PHONETIC_CONFUSIONS[char] || [];
+    const validChars = [...this.config.consonants, ...this.config.vowels];
+    
+    // Only return substitutions that exist in current config
+    return allSubstitutions.filter(sub => validChars.includes(sub));
+  }
+
+  /**
+   * Calculate distance between two coordinates in kilometers
+   */
+  private calculateDistanceKm(coord1: Coordinates, coord2: Coordinates): number {
+    const [lat1, lng1] = coord1;
+    const [lat2, lng2] = coord2;
+    
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+
+  /**
+   * Analyze a syllable address and provide phonetic alternatives
+   */
+  analyzeAddress(syllableAddress: string): AddressAnalysis {
+    // Validate the original address
+    const isValid = this.isValidSyllableAddress(syllableAddress);
+    let coordinates: Coordinates | undefined;
+    
+    if (isValid) {
+      try {
+        coordinates = this.syllableToCoordinate(syllableAddress);
+      } catch {
+        // This shouldn't happen if isValid is true, but being safe
+      }
+    }
+
+    const phoneticAlternatives: PhoneticAlternative[] = [];
+
+    // Only generate alternatives if we have valid coordinates to compare distance
+    if (coordinates) {
+      // Remove separators for character-by-character analysis
+      const cleanAddress = syllableAddress.replace(/[-|]/g, '');
+      
+      // For each character position, try phonetic substitutions
+      for (let i = 0; i < cleanAddress.length; i++) {
+        const char = cleanAddress[i];
+        const substitutions = this.getValidPhoneticSubstitutions(char);
+        
+        for (const substitution of substitutions) {
+          // Create alternative address
+          const altChars = cleanAddress.split('');
+          altChars[i] = substitution;
+          
+          // Reconstruct address with original formatting
+          const altAddress = this.reconstructAddressFormat(altChars.join(''), syllableAddress);
+          
+          // Check if alternative is valid
+          if (this.isValidSyllableAddress(altAddress)) {
+            try {
+              const altCoordinates = this.syllableToCoordinate(altAddress);
+              const distance = this.calculateDistanceKm(coordinates, altCoordinates);
+              
+              phoneticAlternatives.push({
+                address: altAddress,
+                coordinates: altCoordinates,
+                distanceKm: Math.round(distance * 100) / 100, // Round to 2 decimal places
+                change: {
+                  position: i,
+                  from: char,
+                  to: substitution
+                }
+              });
+            } catch {
+              // Alternative address is not convertible, skip it
+            }
+          }
+        }
+      }
+    }
+
+    // Sort alternatives by distance (closest first)
+    phoneticAlternatives.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    return {
+      isValid,
+      address: syllableAddress,
+      coordinates,
+      phoneticAlternatives
+    };
+  }
+
+  /**
+   * Reconstruct address format (with separators) from clean character string
+   */
+  private reconstructAddressFormat(cleanChars: string, originalFormat: string): string {
+    let result = '';
+    let cleanIndex = 0;
+    
+    for (let i = 0; i < originalFormat.length; i++) {
+      const char = originalFormat[i];
+      if (char === '-' || char === '|') {
+        result += char;
+      } else {
+        result += cleanChars[cleanIndex];
+        cleanIndex++;
+      }
+    }
+    
+    return result;
   }
 
   /**

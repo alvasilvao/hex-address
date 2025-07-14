@@ -104,3 +104,32 @@ export class ConversionError extends H3SyllableError {
     this.name = 'ConversionError';
   }
 }
+
+/**
+ * A single character change in a phonetic alternative
+ */
+export interface PhoneticChange {
+  position: number;
+  from: string;
+  to: string;
+}
+
+/**
+ * A phonetic alternative to the original address
+ */
+export interface PhoneticAlternative {
+  address: string;
+  coordinates: Coordinates;
+  distanceKm: number;
+  change: PhoneticChange;
+}
+
+/**
+ * Result from address analysis including phonetic alternatives
+ */
+export interface AddressAnalysis {
+  isValid: boolean;
+  address: string;
+  coordinates?: Coordinates;
+  phoneticAlternatives: PhoneticAlternative[];
+}
