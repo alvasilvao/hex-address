@@ -124,6 +124,33 @@ export interface PhoneticAlternative {
 }
 
 /**
+ * Types of validation errors
+ */
+export type ValidationErrorType = 'format' | 'syllable' | 'geographic' | 'config' | 'length';
+
+/**
+ * Detailed validation error information
+ */
+export interface ValidationError {
+  type: ValidationErrorType;
+  message: string;
+  position?: number;
+  suggestions?: string[];
+  received?: string;
+  expected?: string[];
+}
+
+/**
+ * Comprehensive validation result
+ */
+export interface ValidationResult {
+  isValid: boolean;
+  errors: ValidationError[];
+  validParts: string[];
+  suggestions?: string[];
+}
+
+/**
  * Result from address analysis including phonetic alternatives
  */
 export interface AddressAnalysis {
@@ -131,4 +158,5 @@ export interface AddressAnalysis {
   address: string;
   coordinates?: Coordinates;
   phoneticAlternatives: PhoneticAlternative[];
+  validation?: ValidationResult;
 }

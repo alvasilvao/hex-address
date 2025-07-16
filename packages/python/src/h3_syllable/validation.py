@@ -1,0 +1,1 @@
+# REMOVED - These validation types are now defined inline in the main module

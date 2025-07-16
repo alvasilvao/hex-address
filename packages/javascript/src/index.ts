@@ -39,12 +39,15 @@ export {
   AddressAnalysis,
   PhoneticAlternative,
   PhoneticChange,
+  ValidationResult,
+  ValidationError,
+  ValidationErrorType,
 } from './types';
 
 // Convenience functions
 import { H3SyllableSystem } from './h3-syllable-system';
 import { listConfigs } from './config-loader';
-import { PartialLocationEstimate, AddressAnalysis } from './types';
+import { PartialLocationEstimate, AddressAnalysis, ValidationResult } from './types';
 
 /**
  * Convert coordinates to syllable address using specified configuration
@@ -74,14 +77,45 @@ export function addressToCoordinate(
  * 
  * Some syllable combinations don't map to actual H3 locations, just like
  * how "999999 Main Street" might not exist in the real world.
+ * 
+ * @param syllableAddress - The address to validate
+ * @param configName - Configuration to use
+ * @param detailed - If true, returns detailed ValidationResult with phonetic suggestions
+ * 
+ * @example
+ * ```typescript
+ * // Simple validation
+ * isValidAddress("dinenunukiwufeme") // → true
+ * isValidAddress("invalid") // → false
+ * 
+ * // Detailed validation with phonetic suggestions
+ * const result = isValidAddress("helloworld", "ascii-dnqqwn", true);
+ * console.log(result.errors[0].suggestions); // → ['fello', 'jello', 'mello']
+ * ```
  */
 export function isValidAddress(
   syllableAddress: string,
-  configName: string = 'ascii-dnqqwn'
-): boolean {
-  const system = new H3SyllableSystem(configName);
+  configName?: string
+): boolean;
+export function isValidAddress(
+  syllableAddress: string,
+  configName: string,
+  detailed: true
+): ValidationResult;
+export function isValidAddress(
+  syllableAddress: string,
+  configName?: string,
+  detailed?: boolean
+): boolean | ValidationResult {
+  const system = new H3SyllableSystem(configName || 'ascii-dnqqwn');
+  
+  if (detailed) {
+    return system.isValidAddress(syllableAddress, detailed);
+  }
+  
   return system.isValidAddress(syllableAddress);
 }
+
 
 /**
  * Estimate location and bounds from a partial syllable address
@@ -197,7 +231,7 @@ export function findConfigsByLetters(letters: string[]): string[] {
 }
 
 // Package metadata
-export const version = '1.2.0';
+export const version = '1.3.0';
 export const author = 'Álvaro Silva';
 export const license = 'MIT';
 export const description = 'Convert GPS coordinates to memorable hex addresses';

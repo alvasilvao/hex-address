@@ -8,7 +8,9 @@ import {
   GeographicBounds,
   PartialLocationEstimate,
   AddressAnalysis,
-  PhoneticAlternative
+  PhoneticAlternative,
+  ValidationResult,
+  ValidationError
 } from './types';
 import { getConfig } from './config-loader';
 
@@ -17,33 +19,39 @@ import { getConfig } from './config-loader';
  * Maps characters to their phonetically similar alternatives across different languages
  */
 const PHONETIC_CONFUSIONS: Record<string, string[]> = {
-  // Common English consonant confusions
+  // Voiced/Unvoiced consonant pairs (most common confusions)
   'd': ['t'],
   't': ['d'], 
-  'f': ['v'],
-  'v': ['f'],
-  's': ['z'],
+  'f': ['v', 'p'],  // f often confused with v and p
+  'v': ['f', 'b'],  // v often confused with f and b
+  's': ['z', 'c'],  // s often confused with z and soft c
   'z': ['s'],
-  'm': ['n'],
-  'n': ['m'],
-  'p': ['b'],
-  'b': ['p'],
-  'k': ['c', 'q'],
-  'c': ['k'],
-  'g': ['j'],
-  'j': ['g'],
-  'w': ['v'],  // German w/v confusion
-  'l': ['r'],  // For non-Japanese configs
-  'r': ['l'],
-  'x': ['s'],  // Spanish x/s confusion
-  'y': ['j'],  // Spanish y/j confusion
+  'p': ['b', 'f'],  // p often confused with b and f
+  'b': ['p', 'v'],  // b often confused with p and v
+  'k': ['c', 'g'],  // k often confused with hard c and g
+  'c': ['k', 's'],  // c can sound like k or s
+  'g': ['k', 'j'],  // g often confused with k and j
+  'j': ['g', 'y'],  // j often confused with g and y
   
-  // Vowel confusions (less common but can occur)
-  'e': ['i'],  // Common in many languages
-  'i': ['e'],
-  'o': ['u'],  // Some dialects
-  'u': ['o']
+  // Liquid consonants (often confused)
+  'l': ['r', 'n'],  // l/r confusion common in many languages
+  'r': ['l'],
+  'n': ['m', 'l'],  // n often confused with m and l
+  'm': ['n'],
+  
+  // Sibilants and fricatives
+  'h': ['f'],       // h often confused with f
+  'w': ['v', 'u'],  // w often confused with v and u
+  'y': ['j', 'i'],  // y often confused with j and i
+  
+  // Vowel confusions (very common in speech)
+  'a': ['e', 'o'],  // a often confused with e and o
+  'e': ['i', 'a'],  // e often confused with i and a
+  'i': ['e', 'y'],  // i often confused with e and y
+  'o': ['u', 'a'],  // o often confused with u and a
+  'u': ['o', 'w']   // u often confused with o and w
 };
+
 
 /**
  * H3 Syllable Address System
@@ -200,14 +208,276 @@ export class H3SyllableSystem {
 
   /**
    * Check if a syllable address maps to a real H3 location
+   * 
+   * @param syllableAddress - The address to validate
+   * @param detailed - If true, returns ValidationResult with detailed errors and phonetic suggestions
+   * @returns boolean or ValidationResult based on detailed parameter
+   * 
+   * @example
+   * ```typescript
+   * // Simple validation
+   * system.isValidAddress("dinenunukiwufeme") // → true
+   * system.isValidAddress("invalid") // → false
+   * 
+   * // Detailed validation with phonetic suggestions
+   * const result = system.isValidAddress("helloworld", true);
+   * console.log(result.errors[0].suggestions); // → ['fello', 'jello', 'mello']
+   * ```
    */
-  isValidAddress(syllableAddress: string): boolean {
+  isValidAddress(syllableAddress: string): boolean;
+  isValidAddress(syllableAddress: string, detailed: true): ValidationResult;
+  isValidAddress(syllableAddress: string, detailed: false): boolean;
+  isValidAddress(syllableAddress: string, detailed?: boolean): boolean | ValidationResult {
+    if (detailed) {
+      return this.validateAddress(syllableAddress);
+    }
+    
     try {
       this.addressToCoordinate(syllableAddress);
       return true;
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Comprehensive validation with detailed error reporting
+   * @internal
+   */
+  private validateAddress(syllableAddress: string): ValidationResult {
+    const errors: ValidationError[] = [];
+    const validParts: string[] = [];
+    let suggestions: string[] = [];
+
+    // Step 1: Format validation
+    const formatResult = this.validateFormat(syllableAddress);
+    if (!formatResult.isValid) {
+      errors.push(...formatResult.errors);
+      return { isValid: false, errors, validParts, suggestions };
+    }
+
+    // Step 2: Syllable validation
+    const syllableResult = this.validateSyllables(syllableAddress);
+    errors.push(...syllableResult.errors);
+    validParts.push(...syllableResult.validParts);
+    suggestions.push(...(syllableResult.suggestions || []));
+
+    // Step 3: Geographic validation (only if syllables are valid)
+    if (syllableResult.isValid) {
+      const geoResult = this.validateGeographic(syllableAddress);
+      errors.push(...geoResult.errors);
+      if (!geoResult.isValid) {
+        suggestions.push(...(geoResult.suggestions || []));
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      validParts,
+      suggestions: suggestions.length > 0 ? suggestions : undefined
+    };
+  }
+
+  /**
+   * Validate address format (length, structure)
+   */
+  private validateFormat(address: string): ValidationResult {
+    const errors: ValidationError[] = [];
+    
+    if (!address || address.trim() === '') {
+      errors.push({
+        type: 'format',
+        message: 'Address cannot be empty',
+        suggestions: ['Enter a valid syllable address like "dinenunukiwufeme"']
+      });
+      return { isValid: false, errors, validParts: [] };
+    }
+
+    const cleanAddress = address.toLowerCase().trim();
+    
+    // Check if length is even (syllables are 2 characters each)
+    if (cleanAddress.length % 2 !== 0) {
+      errors.push({
+        type: 'format',
+        message: `Address length must be even (syllables are 2 characters each). Got ${cleanAddress.length} characters`,
+        received: cleanAddress,
+        suggestions: ['Each syllable must be exactly 2 characters (consonant + vowel)']
+      });
+    }
+
+    // Check expected length
+    const expectedLength = this.config.address_length * 2;
+    if (cleanAddress.length !== expectedLength) {
+      errors.push({
+        type: 'length',
+        message: `Address must be exactly ${expectedLength} characters (${this.config.address_length} syllables). Got ${cleanAddress.length} characters`,
+        received: cleanAddress,
+        expected: [`${expectedLength} characters`]
+      });
+    }
+
+    return { isValid: errors.length === 0, errors, validParts: [] };
+  }
+
+  /**
+   * Validate individual syllables
+   */
+  private validateSyllables(address: string): ValidationResult {
+    const errors: ValidationError[] = [];
+    const validParts: string[] = [];
+    const suggestions: string[] = [];
+    
+    const cleanAddress = address.toLowerCase().trim();
+    
+    // Parse syllables
+    const syllables: string[] = [];
+    for (let i = 0; i < cleanAddress.length; i += 2) {
+      syllables.push(cleanAddress.substring(i, i + 2));
+    }
+
+    // Validate each syllable
+    for (let i = 0; i < syllables.length; i++) {
+      const syllable = syllables[i];
+      
+      if (syllable.length !== 2) {
+        errors.push({
+          type: 'syllable',
+          message: `Syllable at position ${i + 1} must be exactly 2 characters. Got "${syllable}" (${syllable.length} characters)`,
+          position: i,
+          received: syllable
+        });
+        continue;
+      }
+
+      if (!this.syllableToIndex.has(syllable)) {
+        const [consonant, vowel] = syllable;
+        const validConsonants = this.config.consonants;
+        const validVowels = this.config.vowels;
+        
+        let errorMsg = `Invalid syllable "${syllable}" at position ${i + 1}`;
+        const syllableSuggestions: string[] = [];
+        
+        // Check if consonant is valid
+        if (!validConsonants.includes(consonant)) {
+          errorMsg += `. Invalid consonant "${consonant}"`;
+          // Suggest phonetically similar consonants
+          const similarConsonants = this.getCharacterSuggestions(consonant, 'consonant');
+          
+          if (similarConsonants.length > 0) {
+            syllableSuggestions.push(...similarConsonants.map(c => c + vowel));
+          }
+        }
+        
+        // Check if vowel is valid
+        if (!validVowels.includes(vowel)) {
+          errorMsg += `. Invalid vowel "${vowel}"`;
+          // Suggest phonetically similar vowels
+          const similarVowels = this.getCharacterSuggestions(vowel, 'vowel');
+          
+          if (similarVowels.length > 0 && validConsonants.includes(consonant)) {
+            syllableSuggestions.push(...similarVowels.map(v => consonant + v));
+          }
+        }
+        
+        errors.push({
+          type: 'syllable',
+          message: errorMsg,
+          position: i,
+          received: syllable,
+          expected: validConsonants.includes(consonant) ? 
+            validVowels.map(v => consonant + v) : 
+            validConsonants.map(c => c + vowel).slice(0, 5),
+          suggestions: syllableSuggestions.length > 0 ? syllableSuggestions : undefined
+        });
+      } else {
+        validParts.push(syllable);
+      }
+    }
+
+    // Add general suggestions for valid syllables
+    if (errors.length > 0) {
+      const allSyllables = Array.from(this.syllableToIndex.keys()).sort();
+      suggestions.push(
+        `Valid syllables: ${allSyllables.slice(0, 10).join(', ')}...`,
+        `Consonants: ${this.config.consonants.join(', ')}`,
+        `Vowels: ${this.config.vowels.join(', ')}`
+      );
+    }
+
+    return { 
+      isValid: errors.length === 0, 
+      errors, 
+      validParts,
+      suggestions: suggestions.length > 0 ? suggestions : undefined
+    };
+  }
+
+  /**
+   * Validate geographic existence
+   */
+  private validateGeographic(address: string): ValidationResult {
+    const errors: ValidationError[] = [];
+    
+    try {
+      this.addressToCoordinate(address);
+      return { isValid: true, errors, validParts: [] };
+    } catch (error) {
+      const suggestions = [
+        'This address combination doesn\'t correspond to a real geographic location',
+        'Try modifying the last few syllables',
+        'Use estimateLocationFromPartial() to explore valid addresses in this area'
+      ];
+
+      // Try to provide similar valid addresses
+      const similarAddresses = this.findSimilarValidAddresses(address);
+      if (similarAddresses.length > 0) {
+        suggestions.unshift(`Similar valid addresses: ${similarAddresses.slice(0, 3).join(', ')}`);
+      }
+
+      errors.push({
+        type: 'geographic',
+        message: `Address "${address}" doesn't correspond to a real geographic location. This is normal - not all syllable combinations map to valid H3 cells.`,
+        suggestions
+      });
+    }
+
+    return { isValid: false, errors, validParts: [] };
+  }
+
+  /**
+   * Find similar valid addresses by modifying the last few syllables
+   */
+  private findSimilarValidAddresses(address: string, maxAttempts: number = 50): string[] {
+    const validAddresses: string[] = [];
+    const cleanAddress = address.toLowerCase().trim();
+    
+    // Parse syllables
+    const syllables: string[] = [];
+    for (let i = 0; i < cleanAddress.length; i += 2) {
+      syllables.push(cleanAddress.substring(i, i + 2));
+    }
+    
+    const allSyllables = Array.from(this.syllableToIndex.keys());
+    let attempts = 0;
+    
+    // Try modifying the last 2 syllables
+    for (let i = Math.max(0, syllables.length - 2); i < syllables.length && attempts < maxAttempts; i++) {
+      for (const replacement of allSyllables) {
+        if (attempts >= maxAttempts) break;
+        
+        const testSyllables = [...syllables];
+        testSyllables[i] = replacement;
+        const testAddress = testSyllables.join('');
+        
+        if (this.isValidAddress(testAddress)) {
+          validAddresses.push(testAddress);
+          attempts++;
+        }
+      }
+    }
+    
+    return validAddresses;
   }
 
   /**
@@ -219,6 +489,25 @@ export class H3SyllableSystem {
     
     // Only return substitutions that exist in current config
     return allSubstitutions.filter(sub => validChars.includes(sub));
+  }
+
+  /**
+   * Get phonetic suggestions for an invalid character
+   */
+  private getCharacterSuggestions(char: string, type: 'consonant' | 'vowel'): string[] {
+    const suggestions = new Set<string>();
+    
+    // 1. Phonetic similarities (highest priority)
+    const phoneticSubs = this.getValidPhoneticSubstitutions(char);
+    phoneticSubs.forEach(sub => suggestions.add(sub));
+    
+    // 2. If no phonetic suggestions, provide first few valid characters
+    if (suggestions.size === 0) {
+      const validChars = type === 'consonant' ? this.config.consonants : this.config.vowels;
+      validChars.slice(0, 3).forEach(c => suggestions.add(c));
+    }
+    
+    return Array.from(suggestions).slice(0, 5); // Limit to top 5 suggestions
   }
 
   /**

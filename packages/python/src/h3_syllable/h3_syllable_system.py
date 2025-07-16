@@ -21,7 +21,7 @@ Features:
 
 import math
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 import h3
 
@@ -31,32 +31,37 @@ from .config_loader import get_config
 # Comprehensive phonetic confusion database
 # Maps characters to their phonetically similar alternatives across different languages
 PHONETIC_CONFUSIONS = {
-    # Common English consonant confusions
+    # Voiced/Unvoiced consonant pairs (most common confusions)
     'd': ['t'],
     't': ['d'], 
-    'f': ['v'],
-    'v': ['f'],
-    's': ['z'],
+    'f': ['v', 'p'],  # f often confused with v and p
+    'v': ['f', 'b'],  # v often confused with f and b
+    's': ['z', 'c'],  # s often confused with z and soft c
     'z': ['s'],
-    'm': ['n'],
-    'n': ['m'],
-    'p': ['b'],
-    'b': ['p'],
-    'k': ['c', 'q'],
-    'c': ['k'],
-    'g': ['j'],
-    'j': ['g'],
-    'w': ['v'],  # German w/v confusion
-    'l': ['r'],  # For non-Japanese configs
-    'r': ['l'],
-    'x': ['s'],  # Spanish x/s confusion
-    'y': ['j'],  # Spanish y/j confusion
+    'p': ['b', 'f'],  # p often confused with b and f
+    'b': ['p', 'v'],  # b often confused with p and v
+    'k': ['c', 'g'],  # k often confused with hard c and g
+    'c': ['k', 's'],  # c can sound like k or s
+    'g': ['k', 'j'],  # g often confused with k and j
+    'j': ['g', 'y'],  # j often confused with g and y
     
-    # Vowel confusions (less common but can occur)
-    'e': ['i'],  # Common in many languages
-    'i': ['e'],
-    'o': ['u'],  # Some dialects
-    'u': ['o']
+    # Liquid consonants (often confused)
+    'l': ['r', 'n'],  # l/r confusion common in many languages
+    'r': ['l'],
+    'n': ['m', 'l'],  # n often confused with m and l
+    'm': ['n'],
+    
+    # Sibilants and fricatives
+    'h': ['f'],       # h often confused with f
+    'w': ['v', 'u'],  # w often confused with v and u
+    'y': ['j', 'i'],  # y often confused with j and i
+    
+    # Vowel confusions (very common in speech)
+    'a': ['e', 'o'],  # a often confused with e and o
+    'e': ['i', 'a'],  # e often confused with i and a
+    'i': ['e', 'y'],  # i often confused with e and y
+    'o': ['u', 'a'],  # o often confused with u and a
+    'u': ['o', 'w']   # u often confused with o and w
 }
 
 
@@ -690,7 +695,7 @@ class H3SyllableSystem:
                 "error": str(e),
             }
 
-    def is_valid_address(self, syllable_address: str) -> bool:
+    def is_valid_address(self, syllable_address: str, detailed: bool = False) -> Union[bool, dict]:
         """
         Check if a syllable address maps to a real H3 location.
 
@@ -700,17 +705,27 @@ class H3SyllableSystem:
 
         Args:
             syllable_address: Syllable address string to validate
+            detailed: If True, returns detailed validation result with phonetic suggestions
 
         Returns:
-            bool: True if address is valid, False if it doesn't exist
+            bool or dict: True/False if detailed=False, detailed validation dict if detailed=True
 
         Example:
-            >>> system = H3SyllableSystem("ascii-etmhjj")
-            >>> system.is_valid_address("je-ma-su-cu|du-ve-gu-ba")
+            >>> system = H3SyllableSystem("ascii-dnqqwn")
+            >>> # Simple validation
+            >>> system.is_valid_address("dinenunukiwufeme")
             True
-            >>> system.is_valid_address("ca-ce-va-po|ce-mi-to-cu")
+            >>> system.is_valid_address("invalid")
             False
+            
+            >>> # Detailed validation with phonetic suggestions
+            >>> result = system.is_valid_address("helloworld", detailed=True)
+            >>> print(result['errors'][0]['suggestions'])
+            ['fello', 'jello', 'mello']  # Phonetic alternatives for 'h'
         """
+        if detailed:
+            return self._validate_address(syllable_address)
+        
         try:
             # Attempt conversion - if it succeeds, address is valid
             self.address_to_coordinate(syllable_address)
@@ -719,6 +734,227 @@ class H3SyllableSystem:
             # Any conversion error means the address doesn't exist
             return False
 
+    def _validate_address(self, syllable_address: str) -> dict:
+        """
+        Comprehensive validation with detailed error reporting.
+        
+        This function provides detailed information about why an address is invalid,
+        including suggestions for corrections and similar valid addresses.
+        
+        Args:
+            syllable_address: Syllable address string to validate
+            
+        Returns:
+            dict: Validation result with detailed error information
+            
+        Example:
+            >>> system = H3SyllableSystem("ascii-dnqqwn")
+            >>> result = system.validate_address("hello-world")
+            >>> if not result['is_valid']:
+            ...     print("Errors:", result['errors'])
+            ...     print("Suggestions:", result['suggestions'])
+        """
+        from .validation import ValidationResult, ValidationError
+        
+        errors = []
+        valid_parts = []
+        suggestions = []
+
+        # Step 1: Format validation
+        format_result = self._validate_format(syllable_address)
+        if not format_result['is_valid']:
+            errors.extend(format_result['errors'])
+            return {
+                'is_valid': False,
+                'errors': errors,
+                'valid_parts': valid_parts,
+                'suggestions': suggestions
+            }
+
+        # Step 2: Syllable validation
+        syllable_result = self._validate_syllables(syllable_address)
+        errors.extend(syllable_result['errors'])
+        valid_parts.extend(syllable_result['valid_parts'])
+        suggestions.extend(syllable_result.get('suggestions', []))
+
+        # Step 3: Geographic validation (only if syllables are valid)
+        if syllable_result['is_valid']:
+            geo_result = self._validate_geographic(syllable_address)
+            errors.extend(geo_result['errors'])
+            if not geo_result['is_valid']:
+                suggestions.extend(geo_result.get('suggestions', []))
+
+        return {
+            'is_valid': len(errors) == 0,
+            'errors': errors,
+            'valid_parts': valid_parts,
+            'suggestions': suggestions if suggestions else None
+        }
+
+    def _validate_format(self, address: str) -> dict:
+        """Validate address format (length, structure)"""
+        errors = []
+        
+        if not address or not address.strip():
+            errors.append({
+                'type': 'format',
+                'message': 'Address cannot be empty',
+                'suggestions': ['Enter a valid syllable address like "dinenunukiwufeme"']
+            })
+            return {'is_valid': False, 'errors': errors, 'valid_parts': []}
+
+        clean_address = address.lower().strip()
+        
+        # Check if length is even (syllables are 2 characters each)
+        if len(clean_address) % 2 != 0:
+            errors.append({
+                'type': 'format',
+                'message': f'Address length must be even (syllables are 2 characters each). Got {len(clean_address)} characters',
+                'received': clean_address,
+                'suggestions': ['Each syllable must be exactly 2 characters (consonant + vowel)']
+            })
+
+        # Check expected length
+        expected_length = self.address_length * 2
+        if len(clean_address) != expected_length:
+            errors.append({
+                'type': 'length',
+                'message': f'Address must be exactly {expected_length} characters ({self.address_length} syllables). Got {len(clean_address)} characters',
+                'received': clean_address,
+                'expected': [f'{expected_length} characters']
+            })
+
+        return {'is_valid': len(errors) == 0, 'errors': errors, 'valid_parts': []}
+
+    def _validate_syllables(self, address: str) -> dict:
+        """Validate individual syllables"""
+        errors = []
+        valid_parts = []
+        suggestions = []
+        
+        clean_address = address.lower().strip()
+        
+        # Parse syllables
+        syllables = [clean_address[i:i+2] for i in range(0, len(clean_address), 2)]
+
+        # Validate each syllable
+        for i, syllable in enumerate(syllables):
+            if len(syllable) != 2:
+                errors.append({
+                    'type': 'syllable',
+                    'message': f'Syllable at position {i + 1} must be exactly 2 characters. Got "{syllable}" ({len(syllable)} characters)',
+                    'position': i,
+                    'received': syllable
+                })
+                continue
+
+            if syllable not in self.syllable_to_index:
+                consonant, vowel = syllable[0], syllable[1]
+                valid_consonants = self.consonants
+                valid_vowels = self.vowels
+                
+                error_msg = f'Invalid syllable "{syllable}" at position {i + 1}'
+                syllable_suggestions = []
+                
+                # Check if consonant is valid
+                if consonant not in valid_consonants:
+                    error_msg += f'. Invalid consonant "{consonant}"'
+                    # Suggest phonetically similar consonants
+                    similar_consonants = self._get_character_suggestions(consonant, 'consonant')
+                    if similar_consonants:
+                        syllable_suggestions.extend([c + vowel for c in similar_consonants])
+                
+                # Check if vowel is valid
+                if vowel not in valid_vowels:
+                    error_msg += f'. Invalid vowel "{vowel}"'
+                    # Suggest phonetically similar vowels
+                    similar_vowels = self._get_character_suggestions(vowel, 'vowel')
+                    if similar_vowels and consonant in valid_consonants:
+                        syllable_suggestions.extend([consonant + v for v in similar_vowels])
+                
+                errors.append({
+                    'type': 'syllable',
+                    'message': error_msg,
+                    'position': i,
+                    'received': syllable,
+                    'expected': [consonant + v for v in valid_vowels] if consonant in valid_consonants else [c + vowel for c in valid_consonants][:5],
+                    'suggestions': syllable_suggestions if syllable_suggestions else None
+                })
+            else:
+                valid_parts.append(syllable)
+
+        # Add general suggestions for valid syllables
+        if errors:
+            all_syllables = sorted(self.syllable_to_index.keys())
+            suggestions.extend([
+                f'Valid syllables: {", ".join(all_syllables[:10])}...',
+                f'Consonants: {", ".join(self.consonants)}',
+                f'Vowels: {", ".join(self.vowels)}'
+            ])
+
+        return {
+            'is_valid': len(errors) == 0,
+            'errors': errors,
+            'valid_parts': valid_parts,
+            'suggestions': suggestions if suggestions else None
+        }
+
+    def _validate_geographic(self, address: str) -> dict:
+        """Validate geographic existence"""
+        errors = []
+        
+        try:
+            self.address_to_coordinate(address)
+            return {'is_valid': True, 'errors': errors, 'valid_parts': []}
+        except Exception:
+            suggestions = [
+                'This address combination doesn\'t correspond to a real geographic location',
+                'Try modifying the last few syllables',
+                'Use estimate_location_from_partial() to explore valid addresses in this area'
+            ]
+
+            # Try to provide similar valid addresses
+            similar_addresses = self._find_similar_valid_addresses(address)
+            if similar_addresses:
+                suggestions.insert(0, f'Similar valid addresses: {", ".join(similar_addresses[:3])}')
+
+            errors.append({
+                'type': 'geographic',
+                'message': f'Address "{address}" doesn\'t correspond to a real geographic location. This is normal - not all syllable combinations map to valid H3 cells.',
+                'suggestions': suggestions
+            })
+
+        return {'is_valid': False, 'errors': errors, 'valid_parts': []}
+
+    def _find_similar_valid_addresses(self, address: str, max_attempts: int = 50) -> List[str]:
+        """Find similar valid addresses by modifying the last few syllables"""
+        valid_addresses = []
+        clean_address = address.lower().strip()
+        
+        # Parse syllables
+        syllables = [clean_address[i:i+2] for i in range(0, len(clean_address), 2)]
+        
+        all_syllables = list(self.syllable_to_index.keys())
+        attempts = 0
+        
+        # Try modifying the last 2 syllables
+        for i in range(max(0, len(syllables) - 2), len(syllables)):
+            if attempts >= max_attempts:
+                break
+            for replacement in all_syllables:
+                if attempts >= max_attempts:
+                    break
+                
+                test_syllables = syllables.copy()
+                test_syllables[i] = replacement
+                test_address = ''.join(test_syllables)
+                
+                if self.is_valid_address(test_address):
+                    valid_addresses.append(test_address)
+                    attempts += 1
+        
+        return valid_addresses
+
     def _get_valid_phonetic_substitutions(self, char: str) -> List[str]:
         """Get valid phonetic substitutions for a character based on current config."""
         all_substitutions = PHONETIC_CONFUSIONS.get(char, [])
@@ -726,6 +962,21 @@ class H3SyllableSystem:
         
         # Only return substitutions that exist in current config
         return [sub for sub in all_substitutions if sub in valid_chars]
+
+    def _get_character_suggestions(self, char: str, char_type: str) -> List[str]:
+        """Get phonetic suggestions for an invalid character."""
+        suggestions = set()
+        
+        # 1. Phonetic similarities (highest priority)
+        phonetic_subs = self._get_valid_phonetic_substitutions(char)
+        suggestions.update(phonetic_subs)
+        
+        # 2. If no phonetic suggestions, provide first few valid characters
+        if not suggestions:
+            valid_chars = self.consonants if char_type == 'consonant' else self.vowels
+            suggestions.update(valid_chars[:3])
+        
+        return list(suggestions)[:5]  # Limit to top 5 suggestions
 
     def _calculate_distance_km(self, coord1: Tuple[float, float], coord2: Tuple[float, float]) -> float:
         """Calculate distance between two coordinates in kilometers."""
@@ -1363,8 +1614,13 @@ def is_valid_address(syllable_address: str, config_name: str = None) -> bool:
         >>> is_valid_syllable_address("ca-ce-va-po|ce-mi-to-cu")
         False
     """
+    if config_name is None:
+        config_name = "ascii-dnqqwn"
+    
     system = H3SyllableSystem(config_name)
-    return system.is_valid_address(syllable_address)
+    return system.is_valid_address(syllable_address, detailed=detailed)
+
+
 
 
 def estimate_location_from_partial(partial_address: str, config_name: str = None, comprehensive: bool = False) -> PartialLocationEstimate:
