@@ -1,186 +1,303 @@
 # Hex Address - JavaScript/TypeScript Package
 
-[![npm version](https://badge.fury.io/js/hex-address.svg)](https://badge.fury.io/js/hex-address)
+[![npm version](https://badge.fury.io/js/@alvarosilva/hex-address.svg)](https://badge.fury.io/js/@alvarosilva/hex-address)
 [![Node.js 16+](https://img.shields.io/badge/node-16%2B-brightgreen.svg)](https://nodejs.org/en/download/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Convert GPS coordinates to memorable syllable addresses like `je-ma-su-cu|du-ve-gu-ba` with ~0.5 meter precision using spatially optimized H3 indexing.
+Convert GPS coordinates to memorable hex addresses like `dinenunukiwufeme` with ~0.5 meter precision using H3 spatial indexing.
 
 ## 🚀 Quick Start
 
 ```bash
-npm install hex-address
+npm install @alvarosilva/hex-address
 ```
 
 ### JavaScript (ES6+)
 ```javascript
-import { H3SyllableSystem, isValidSyllableAddress } from 'hex-address';
+import { coordinateToAddress, addressToCoordinate, isValidAddress } from '@alvarosilva/hex-address';
 
-// Initialize system (uses default ascii-fqwfmd config)
-const system = new H3SyllableSystem();
-
-// Convert coordinates to syllable address
-const address = system.coordinateToSyllable(48.8566, 2.3522);
-console.log(address); // "je-ma-su-cu|du-ve-gu-ba"
+// Convert coordinates to hex address
+const address = coordinateToAddress(48.8566, 2.3522);
+console.log(address); // "dinenunukiwufeme"
 
 // Convert back to coordinates
-const [lat, lon] = system.syllableToCoordinate(address);
+const [lat, lon] = addressToCoordinate(address);
 console.log(`${lat.toFixed(6)}, ${lon.toFixed(6)}`); // 48.856602, 2.352198
 
-// Validate addresses (some combinations don't exist)
-if (system.isValidSyllableAddress(address)) {
-    console.log('Valid address!');
-}
+// Validate addresses
+const isValid = isValidAddress(address);
+console.log(isValid); // true
 ```
 
 ### TypeScript
 ```typescript
 import { 
-    H3SyllableSystem, 
-    Coordinates, 
-    SyllableConfig 
-} from 'hex-address';
-
-const system = new H3SyllableSystem();
+  H3SyllableSystem, 
+  coordinateToAddress,
+  isValidAddress,
+  ValidationResult
+} from '@alvarosilva/hex-address';
 
 // Type-safe coordinate conversion
-const coords: Coordinates = [48.8566, 2.3522];
-const address: string = system.coordinateToSyllable(...coords);
+const coords: [number, number] = [48.8566, 2.3522];
+const address: string = coordinateToAddress(...coords);
 
-// Get configuration details
-const config: SyllableConfig = system.getConfig();
-console.log(`Using ${config.consonants.length} consonants, ${config.vowels.length} vowels`);
+// Advanced validation with error details
+const validation: ValidationResult = isValidAddress(address, 'ascii-dnqqwn', true);
+if (!validation.isValid) {
+  validation.errors.forEach(error => {
+    console.log(`Error: ${error.message}`);
+    if (error.suggestions) {
+      console.log(`Suggestions: ${error.suggestions.join(', ')}`);
+    }
+  });
+}
 ```
 
 ### CommonJS
 ```javascript
-const { H3SyllableSystem } = require('hex-address');
+const { coordinateToAddress, addressToCoordinate } = require('@alvarosilva/hex-address');
 
-const system = new H3SyllableSystem();
-const address = system.coordinateToSyllable(48.8566, 2.3522);
-console.log(address); // "je-ma-su-cu|du-ve-gu-ba"
+const address = coordinateToAddress(48.8566, 2.3522);
+console.log(address); // "dinenunukiwufeme"
 ```
 
 ## 📋 Features
 
+### Core Features
 - **Sub-meter precision** (~0.5m) using H3 Level 15
-- **Spatially optimized** with perfect Hamiltonian path (100% adjacency)
 - **Memorable addresses** using pronounceable syllables
-- **Geographic similarity** - nearby locations share syllable prefixes like postal codes
 - **Perfect reversibility** for all real coordinates
-- **Dynamic formatting** with pipe separators for readability
-- **Multiple configurations** optimized for different use cases
-- **Pure ASCII** letters for universal compatibility
 - **TypeScript support** with full type definitions
+- **Comprehensive validation** with intelligent error messages
+- **Phonetic suggestions** for misheard/misspelled addresses
+
+### Geographic Analysis (New in v1.3.0!)
+- **Distance calculation** between addresses
+- **Nearby address search** within radius
+- **Address clustering** for route optimization
+- **Geographic bounds** calculation
+- **Spatial utilities** for location-based applications
+
+### Technical Features
+- **Pure ASCII** letters for universal compatibility
+- **Multiple configurations** optimized for different languages
 - **Dual package** (ESM and CommonJS)
+- **Browser compatible** with polyfills
+- **Comprehensive error handling**
 
-## 🎯 Configuration Options
+## 🎯 New Utility Functions (v1.3.0)
 
-Choose from multiple configurations based on your needs:
-
+### Distance & Location Analysis
 ```javascript
-// Full ASCII alphabet (21 consonants, 5 vowels, 8 syllables)
-const system = new H3SyllableSystem('ascii-fqwfmd'); // Default
+import { 
+  calculateDistance, 
+  findNearbyAddresses, 
+  getAddressBounds,
+  clusterAddresses 
+} from '@alvarosilva/hex-address';
 
-// Minimal balanced (10 consonants, 5 vowels, 9 syllables) 
-const system2 = new H3SyllableSystem('ascii-cjbnb');
+// Calculate distance between two addresses
+const distance = calculateDistance("addr1", "addr2");
+console.log(`Distance: ${distance.toFixed(2)} km`);
 
-// Japanese-friendly (no L/R confusion)
-const system3 = new H3SyllableSystem('ascii-fqwclj');
+// Find addresses within radius
+const nearby = findNearbyAddresses("centerAddress", 1.0); // 1km radius
+console.log(`Found ${nearby.length} nearby addresses`);
 
-// List all available configurations
-import { listConfigs } from 'hex-address';
-console.log(listConfigs());
+// Get geographic bounds for an address
+const bounds = getAddressBounds("address");
+console.log(`Bounds: ${bounds.north}, ${bounds.south}, ${bounds.east}, ${bounds.west}`);
+
+// Cluster addresses for route optimization
+const clusters = clusterAddresses(["addr1", "addr2", "addr3"], 0.5); // 500m max distance
+console.log(`Organized into ${clusters.length} clusters`);
+```
+
+### Enhanced Validation (v1.3.0)
+```javascript
+// Simple validation
+const isValid = isValidAddress("dinenunukiwufeme"); // returns boolean
+
+// Detailed validation with phonetic suggestions
+const result = isValidAddress("helloworld", "ascii-dnqqwn", true);
+if (!result.isValid) {
+  result.errors.forEach(error => {
+    console.log(`[${error.type}] ${error.message}`);
+    if (error.suggestions) {
+      console.log(`Try: ${error.suggestions.slice(0, 3).join(', ')}`);
+    }
+  });
+}
 ```
 
 ## 🌍 Use Cases
 
-- **Emergency services**: Share precise locations memorably
-- **Logistics**: Human-friendly delivery addresses  
-- **Gaming**: Location-based game mechanics
-- **International**: Cross-language location sharing with ASCII compatibility
-- **Web apps**: User-friendly coordinate system
-- **Navigation**: Easy-to-communicate waypoints
+- **Emergency Services**: Share precise locations with phonetic alternatives for radio communication
+- **Delivery & Logistics**: Route optimization with address clustering
+- **Real Estate**: Property analysis with nearby location search
+- **Gaming**: Location-based mechanics with memorable addresses
+- **Navigation**: User-friendly waypoint system
+- **International**: Cross-language compatibility with ASCII addresses
+
+## 🛠️ API Reference
+
+### Coordinate Conversion
+```typescript
+// Convert coordinates to address
+coordinateToAddress(latitude: number, longitude: number, configName?: string): string
+
+// Convert address to coordinates  
+addressToCoordinate(address: string, configName?: string): [number, number]
+```
+
+### Validation
+```typescript
+// Simple validation (returns boolean)
+isValidAddress(address: string, configName?: string): boolean
+
+// Detailed validation (returns ValidationResult with errors/suggestions)
+isValidAddress(address: string, configName: string, detailed: true): ValidationResult
+```
+
+### Geographic Analysis
+```typescript
+// Calculate distance between addresses
+calculateDistance(address1: string, address2: string, configName?: string): number
+
+// Find nearby addresses within radius
+findNearbyAddresses(
+  centerAddress: string, 
+  radiusKm: number, 
+  configName?: string
+): Array<{address: string, distance: number, coordinates: [number, number]}>
+
+// Get geographic bounds for address
+getAddressBounds(address: string, configName?: string): GeographicBounds
+
+// Cluster addresses by proximity
+clusterAddresses(
+  addresses: string[], 
+  maxDistanceKm: number, 
+  configName?: string
+): Array<{addresses: string[], center: [number, number], bounds: GeographicBounds}>
+```
+
+### Advanced Analysis
+```typescript
+// Get partial location estimates
+estimateLocationFromPartial(
+  partialAddress: string, 
+  configName?: string, 
+  comprehensive?: boolean
+): PartialLocationEstimate
+
+// Analyze address with phonetic alternatives
+analyzeAddress(address: string, configName?: string): AddressAnalysis
+```
+
+### Configuration Management
+```typescript
+// List available configurations
+listAvailableConfigs(): string[]
+
+// Get configuration details
+getConfigInfo(configName: string): ConfigInfo
+
+// Find configs by letters
+findConfigsByLetters(letters: string[]): string[]
+
+// System optimization
+suggestSystemForLanguage(language?: string, precisionMeters?: number): H3SyllableSystem
+```
+
+### H3SyllableSystem Class
+```typescript
+const system = new H3SyllableSystem(configName?: string);
+
+// Core methods
+system.coordinateToAddress(lat: number, lon: number): string
+system.addressToCoordinate(address: string): [number, number]
+system.isValidAddress(address: string, detailed?: boolean): boolean | ValidationResult
+
+// Analysis methods  
+system.analyzeAddress(address: string): AddressAnalysis
+system.estimateLocationFromPartial(partial: string, comprehensive?: boolean): PartialLocationEstimate
+
+// System information
+system.getSystemInfo(): SystemInfo
+system.getConfig(): SyllableConfig
+system.clearCache(): void
+```
+
+## 🎯 Configuration Options
+
+Choose from multiple configurations optimized for different languages and use cases:
+
+```javascript
+// Default configuration (21 consonants, 5 vowels)
+const system = new H3SyllableSystem('ascii-dnqqwn'); // Default
+
+// Japanese-friendly (no L/R confusion)
+const system2 = new H3SyllableSystem('ascii-fqwclj');
+
+// List all available configurations
+import { listAvailableConfigs, getConfigInfo } from '@alvarosilva/hex-address';
+
+const configs = listAvailableConfigs();
+configs.forEach(config => {
+  const info = getConfigInfo(config);
+  console.log(`${config}: ${info.totalSyllables} syllables, ${info.addressLength} length`);
+});
+```
 
 ## 🔬 Technical Details
 
 - **Precision**: ~0.5 meter accuracy (H3 Resolution 15)
-- **Coverage**: 122 × 7^15 = 579,202,504,213,046 H3 positions
-- **Constraint**: max_consecutive = 1 (no adjacent identical syllables)
-- **Spatial optimization**: 100% adjacency through Hamiltonian path
-- **Geographic ordering**: Syllables ordered coarse-to-fine (like postal codes)
-- **Performance**: ~6,700 conversions/second
+- **Coverage**: Global coverage with 122 × 7^15 ≈ 579 trillion addresses
+- **Performance**: Optimized with caching and efficient algorithms
+- **Memory**: Minimal footprint with configurable cache limits
+- **Browser Support**: Works in all modern browsers with polyfills
 
 ### Geographic Similarity
 
-Nearby locations share syllable prefixes, making addresses intuitive:
+Nearby locations share address prefixes, making addresses intuitive:
 
 ```javascript
 // Coordinates ~75m apart in Paris
-system.coordinateToSyllable(48.8566, 2.3522); // "bi-me-mu-mu|hi-vu-ka-ju"
-system.coordinateToSyllable(48.8567, 2.3523); // "bi-me-mu-mu|hi-vu-ne-go"
-                                               //  ^^^^^^^^^^^^^^^ shared prefix (75%)
+coordinateToAddress(48.8566, 2.3522); // "dinenunukiwufeme"
+coordinateToAddress(48.8567, 2.3523); // "dinenunukiwufene"
+//                                     ^^^^^^^^^^^^^^^ shared prefix (93%)
 ```
 
-This works because syllables represent geographic hierarchy from coarse (continent/country) to fine (meter-level), similar to how postal codes work.
+## 📖 Examples & Documentation
 
-## 🛠️ API Reference
+- **[Complete Examples](EXAMPLES.md)** - Real-world use cases and code samples
+- **[Validation Guide](VALIDATION_FEATURES.md)** - Detailed validation and error handling
+- **[System Comparison](LOCATION_SYSTEMS_COMPARISON.md)** - How hex-address compares to What3Words, Plus Codes, etc.
 
-### Main Classes
+## 🧪 Testing Your Integration
 
-#### `H3SyllableSystem`
-```typescript
-constructor(configName?: string)
-coordinateToSyllable(latitude: number, longitude: number): string
-syllableToCoordinate(syllableAddress: string): Coordinates
-isValidSyllableAddress(syllableAddress: string): boolean
-testRoundTrip(latitude: number, longitude: number): RoundTripResult
-getSystemInfo(): SystemInfo
-clearCache(): void
-```
+```javascript
+import { coordinateToAddress, addressToCoordinate, calculateDistance } from '@alvarosilva/hex-address';
 
-### Convenience Functions
-
-```typescript
-coordinateToSyllable(lat: number, lon: number, config?: string): string
-syllableToCoordinate(address: string, config?: string): Coordinates
-isValidSyllableAddress(address: string, config?: string): boolean
-```
-
-### Available Configurations
-
-Current ASCII-based configurations:
-
-- **ascii-fqwfmd**: Full ASCII alphabet (default)
-- **ascii-jaxqt**: Common typing letters
-- **ascii-fqwclj**: No L (Japanese-friendly)
-- **ascii-fqsmnn**: No Q (Spanish-friendly) 
-- **ascii-cjbnb**: Minimal balanced
-- **ascii-dsyp**: Minimal compact
-
-### Types
-
-```typescript
-type Coordinates = [number, number];
-
-interface SyllableConfig {
-  name: string;
-  consonants: string[];
-  vowels: string[];
-  address_length: number;
-  max_consecutive: number;
-  h3_resolution: number;
+// Test round-trip accuracy
+function testAccuracy(lat, lon) {
+  const address = coordinateToAddress(lat, lon);
+  const [newLat, newLon] = addressToCoordinate(address);
+  const error = calculateDistance(
+    coordinateToAddress(lat, lon),
+    coordinateToAddress(newLat, newLon)
+  );
+  
+  console.log(`Original: ${lat}, ${lon}`);
+  console.log(`Address: ${address}`);
+  console.log(`Converted: ${newLat}, ${newLon}`);
+  console.log(`Error: ${(error * 1000).toFixed(1)}m`);
 }
 
-interface RoundTripResult {
-  success: boolean;
-  originalCoordinates: Coordinates;
-  syllableAddress: string;
-  resultCoordinates: Coordinates;
-  distanceErrorMeters: number;
-  precise: boolean;
-}
+testAccuracy(48.8566, 2.3522); // Test with Eiffel Tower coordinates
 ```
 
 ## 🔧 Development
@@ -195,21 +312,38 @@ npm run build
 # Run tests
 npm test
 
-# Run linting
+# Run linting  
 npm run lint
 
 # Type checking
 npm run type-check
 ```
 
-## 📖 Documentation
+## 📦 Package Information
 
-For complete documentation, architecture details, and live demo, visit the [Hex Address App](https://hex-address-app.vercel.app/).
+- **Size**: ~50KB minified
+- **Dependencies**: h3-js only
+- **Node.js**: 16+ required
+- **Browser**: Modern browsers with ES2020 support
+- **TypeScript**: Full type definitions included
+
+## 🆕 What's New in v1.3.0
+
+- ✅ **Enhanced Validation**: Detailed error messages with phonetic suggestions
+- ✅ **Geographic Utilities**: Distance calculation, nearby search, clustering
+- ✅ **Better Error Handling**: Comprehensive validation with specific error types
+- ✅ **Phonetic Suggestions**: 54 phonetic confusion patterns for voice applications
+- ✅ **Performance Improvements**: Optimized algorithms and caching
+- ✅ **Complete Documentation**: Extensive examples and guides
 
 ## 🤝 Contributing
 
-Contributions welcome! See [CONTRIBUTING.md](../../CONTRIBUTING.md) for guidelines.
+Contributions welcome! Please read our [Contributing Guide](../../CONTRIBUTING.md) for details.
 
 ## 📄 License
 
 MIT License - see [LICENSE](../../LICENSE) for details.
+
+---
+
+**Need help?** Check out our [Examples](EXAMPLES.md) or [open an issue](https://github.com/alvasilvao/hex-address/issues) on GitHub.

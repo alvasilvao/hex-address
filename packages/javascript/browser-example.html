@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hex Address - Browser Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .example {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .result {
+            background: #e8f4f8;
+            padding: 10px;
+            border-radius: 3px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a8b;
+        }
+        input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            margin: 5px;
+        }
+        .performance {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 3px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Hex Address - Browser Example</h1>
+    
+    <div class="example">
+        <h3>Basic Conversion</h3>
+        <p>
+            Latitude: <input type="number" id="lat" value="48.8566" step="0.0001">
+            Longitude: <input type="number" id="lon" value="2.3522" step="0.0001">
+            <button onclick="convertToAddress()">Convert to Address</button>
+        </p>
+        <div id="address-result" class="result"></div>
+        
+        <p>
+            Address: <input type="text" id="address" placeholder="Enter hex address">
+            <button onclick="convertToCoords()">Convert to Coordinates</button>
+        </p>
+        <div id="coords-result" class="result"></div>
+    </div>
+
+    <div class="example">
+        <h3>Performance Test</h3>
+        <p>
+            <button onclick="runPerformanceTest()">Test Individual Operations (1000 addresses)</button>
+        </p>
+        <div id="performance-result" class="result"></div>
+    </div>
+
+    <div class="example">
+        <h3>Validation</h3>
+        <p>
+            <input type="text" id="validate-address" placeholder="Enter address to validate">
+            <button onclick="validateAddress()">Validate</button>
+            <button onclick="validateDetailed()">Validate (Detailed)</button>
+        </p>
+        <div id="validation-result" class="result"></div>
+    </div>
+
+    <div class="example">
+        <h3>Distance Calculation</h3>
+        <p>
+            Address 1: <input type="text" id="addr1" placeholder="First address">
+            Address 2: <input type="text" id="addr2" placeholder="Second address">
+            <button onclick="calculateDistance()">Calculate Distance</button>
+        </p>
+        <div id="distance-result" class="result"></div>
+    </div>
+
+    <div class="example">
+        <h3>Web Worker Demo</h3>
+        <p>
+            <button onclick="runWorkerDemo()">Process individual operations in Web Worker</button>
+        </p>
+        <div id="worker-result" class="result"></div>
+    </div>
+
+    <!-- Load the browser build -->
+    <script src="./dist/browser.browser.js"></script>
+    
+    <script>
+        // Basic conversion functions
+        function convertToAddress() {
+            const lat = parseFloat(document.getElementById('lat').value);
+            const lon = parseFloat(document.getElementById('lon').value);
+            
+            try {
+                const address = HexAddress.coordinateToAddress(lat, lon);
+                document.getElementById('address-result').innerHTML = 
+                    `Address: <strong>${address}</strong><br>` +
+                    `Coordinates: ${lat}, ${lon}`;
+                document.getElementById('address').value = address;
+            } catch (error) {
+                document.getElementById('address-result').innerHTML = 
+                    `<span style="color: red;">Error: ${error.message}</span>`;
+            }
+        }
+
+        function convertToCoords() {
+            const address = document.getElementById('address').value;
+            
+            try {
+                const [lat, lon] = HexAddress.addressToCoordinate(address);
+                document.getElementById('coords-result').innerHTML = 
+                    `Coordinates: <strong>${lat.toFixed(6)}, ${lon.toFixed(6)}</strong><br>` +
+                    `Address: ${address}`;
+                document.getElementById('lat').value = lat;
+                document.getElementById('lon').value = lon;
+            } catch (error) {
+                document.getElementById('coords-result').innerHTML = 
+                    `<span style="color: red;">Error: ${error.message}</span>`;
+            }
+        }
+
+        // Performance test
+        function runPerformanceTest() {
+            const resultDiv = document.getElementById('performance-result');
+            resultDiv.innerHTML = 'Testing individual operations (1000 addresses)...';
+            
+            // Generate random coordinates
+            const coords = Array.from({length: 1000}, () => [
+                Math.random() * 180 - 90,
+                Math.random() * 360 - 180
+            ]);
+            
+            const start = performance.now();
+            const addresses = coords.map(([lat, lon]) => HexAddress.coordinateToAddress(lat, lon));
+            const end = performance.now();
+            
+            resultDiv.innerHTML = 
+                `Generated ${addresses.length} addresses in ${(end - start).toFixed(2)}ms<br>` +
+                `Average: ${((end - start) / addresses.length).toFixed(3)}ms per address<br>` +
+                `Rate: ${(addresses.length / (end - start) * 1000).toFixed(0)} addresses/second<br>` +
+                `Sample addresses: ${addresses.slice(0, 3).join(', ')}...`;
+        }
+
+        // Validation
+        function validateAddress() {
+            const address = document.getElementById('validate-address').value;
+            if (!address) return;
+            
+            try {
+                const isValid = HexAddress.isValidAddress(address);
+                document.getElementById('validation-result').innerHTML = 
+                    `Address "${address}" is <strong>${isValid ? 'VALID' : 'INVALID'}</strong>`;
+            } catch (error) {
+                document.getElementById('validation-result').innerHTML = 
+                    `<span style="color: red;">Error: ${error.message}</span>`;
+            }
+        }
+
+        function validateDetailed() {
+            const address = document.getElementById('validate-address').value;
+            if (!address) return;
+            
+            try {
+                const result = HexAddress.isValidAddress(address, 'ascii-dnqqwn', true);
+                let html = `Address "${address}" is <strong>${result.isValid ? 'VALID' : 'INVALID'}</strong><br>`;
+                
+                if (!result.isValid) {
+                    html += `<br><strong>Errors:</strong><br>`;
+                    result.errors.forEach((error, i) => {
+                        html += `${i + 1}. [${error.type}] ${error.message}<br>`;
+                        if (error.suggestions) {
+                            html += `   Suggestions: ${error.suggestions.slice(0, 3).join(', ')}<br>`;
+                        }
+                    });
+                }
+                
+                document.getElementById('validation-result').innerHTML = html;
+            } catch (error) {
+                document.getElementById('validation-result').innerHTML = 
+                    `<span style="color: red;">Error: ${error.message}</span>`;
+            }
+        }
+
+        // Distance calculation
+        function calculateDistance() {
+            const addr1 = document.getElementById('addr1').value;
+            const addr2 = document.getElementById('addr2').value;
+            
+            if (!addr1 || !addr2) return;
+            
+            try {
+                const distance = HexAddress.calculateDistance(addr1, addr2);
+                document.getElementById('distance-result').innerHTML = 
+                    `Distance between addresses: <strong>${distance.toFixed(2)} km</strong><br>` +
+                    `That's ${(distance * 1000).toFixed(0)} meters or ${(distance * 0.621371).toFixed(2)} miles`;
+            } catch (error) {
+                document.getElementById('distance-result').innerHTML = 
+                    `<span style="color: red;">Error: ${error.message}</span>`;
+            }
+        }
+
+        // Web Worker demo
+        function runWorkerDemo() {
+            const resultDiv = document.getElementById('worker-result');
+            resultDiv.innerHTML = 'Starting Web Worker...';
+            
+            try {
+                const worker = HexAddress.createWebWorker();
+                
+                const start = performance.now();
+                
+                worker.postMessage({
+                    type: 'coordinateToAddress',
+                    data: { lat: 48.8566, lon: 2.3522, configName: 'ascii-dnqqwn' }
+                });
+                
+                worker.onmessage = function(e) {
+                    const end = performance.now();
+                    
+                    if (e.data.type === 'result') {
+                        resultDiv.innerHTML = 
+                            `<strong>Web Worker completed!</strong><br>` +
+                            `Generated address: ${e.data.data}<br>` +
+                            `Processing time: ${(end - start).toFixed(2)}ms<br>` +
+                            `Now testing validation...`;
+                        
+                        // Test validation in worker
+                        worker.postMessage({
+                            type: 'isValidAddress',
+                            data: { address: e.data.data, configName: 'ascii-dnqqwn', detailed: true }
+                        });
+                    } else if (e.data.type === 'error') {
+                        resultDiv.innerHTML = `<span style="color: red;">Worker Error: ${e.data.data}</span>`;
+                        worker.terminate();
+                    }
+                };
+                
+                worker.onerror = function(error) {
+                    resultDiv.innerHTML = `<span style="color: red;">Worker Error: ${error.message}</span>`;
+                    worker.terminate();
+                };
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<span style="color: red;">Error: ${error.message}</span>`;
+            }
+        }
+
+        // Initialize with example data
+        window.onload = function() {
+            // Set some example addresses
+            document.getElementById('validate-address').value = 'helloworld';
+            document.getElementById('addr1').value = HexAddress.coordinateToAddress(48.8566, 2.3522);
+            document.getElementById('addr2').value = HexAddress.coordinateToAddress(40.7580, -73.9855);
+        };
+    </script>
+</body>
+</html>

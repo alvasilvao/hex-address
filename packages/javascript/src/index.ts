@@ -47,7 +47,7 @@ export {
 // Convenience functions
 import { H3SyllableSystem } from './h3-syllable-system';
 import { listConfigs } from './config-loader';
-import { PartialLocationEstimate, AddressAnalysis, ValidationResult } from './types';
+import { PartialLocationEstimate, AddressAnalysis, ValidationResult, GeographicBounds } from './types';
 
 /**
  * Convert coordinates to syllable address using specified configuration
@@ -230,8 +230,220 @@ export function findConfigsByLetters(letters: string[]): string[] {
   return result;
 }
 
+/**
+ * Calculate distance between two hex addresses in kilometers
+ * 
+ * @param address1 - First hex address
+ * @param address2 - Second hex address  
+ * @param configName - Configuration to use
+ * @returns Distance in kilometers
+ * 
+ * @example
+ * ```typescript
+ * const distance = calculateDistance(
+ *   "dinenunukiwufeme", 
+ *   "dinenunukiwufene", 
+ *   "ascii-dnqqwn"
+ * );
+ * console.log(`Distance: ${distance.toFixed(2)} km`);
+ * ```
+ */
+export function calculateDistance(
+  address1: string,
+  address2: string,
+  configName: string = 'ascii-dnqqwn'
+): number {
+  const system = new H3SyllableSystem(configName);
+  const [lat1, lon1] = system.addressToCoordinate(address1);
+  const [lat2, lon2] = system.addressToCoordinate(address2);
+  
+  return haversineDistance(lat1, lon1, lat2, lon2);
+}
+
+/**
+ * Find hex addresses within a radius of a center address
+ * 
+ * @param centerAddress - Center hex address
+ * @param radiusKm - Radius in kilometers
+ * @param configName - Configuration to use
+ * @returns Array of nearby addresses with distances
+ * 
+ * @example
+ * ```typescript
+ * const nearby = findNearbyAddresses("dinenunukiwufeme", 1.0);
+ * nearby.forEach(item => {
+ *   console.log(`${item.address}: ${item.distance.toFixed(3)}km`);
+ * });
+ * ```
+ */
+export function findNearbyAddresses(
+  centerAddress: string,
+  radiusKm: number,
+  configName: string = 'ascii-dnqqwn'
+): Array<{ address: string; distance: number; coordinates: [number, number] }> {
+  const system = new H3SyllableSystem(configName);
+  const [centerLat, centerLon] = system.addressToCoordinate(centerAddress);
+  
+  // Generate grid of nearby coordinates to find addresses within radius
+  const result: Array<{ address: string; distance: number; coordinates: [number, number] }> = [];
+  const gridSize = radiusKm / 111; // Approximate degrees per km
+  const stepSize = gridSize / 10; // Higher resolution for better coverage
+  
+  for (let latOffset = -gridSize; latOffset <= gridSize; latOffset += stepSize) {
+    for (let lonOffset = -gridSize; lonOffset <= gridSize; lonOffset += stepSize) {
+      const testLat = centerLat + latOffset;
+      const testLon = centerLon + lonOffset;
+      
+      try {
+        const address = system.coordinateToAddress(testLat, testLon);
+        const distance = haversineDistance(centerLat, centerLon, testLat, testLon);
+        
+        if (distance <= radiusKm && address !== centerAddress) {
+          // Check if we already have this address
+          if (!result.find(item => item.address === address)) {
+            result.push({ address, distance, coordinates: [testLat, testLon] });
+          }
+        }
+      } catch {
+        // Skip invalid coordinates
+      }
+    }
+  }
+  
+  return result.sort((a, b) => a.distance - b.distance);
+}
+
+/**
+ * Get geographic bounds (bounding box) for a hex address
+ * 
+ * @param address - Hex address
+ * @param configName - Configuration to use
+ * @returns Geographic bounds object
+ * 
+ * @example
+ * ```typescript
+ * const bounds = getAddressBounds("dinenunukiwufeme");
+ * console.log(`SW: ${bounds.south}, ${bounds.west}`);
+ * console.log(`NE: ${bounds.north}, ${bounds.east}`);
+ * ```
+ */
+export function getAddressBounds(
+  address: string,
+  configName: string = 'ascii-dnqqwn'
+): GeographicBounds {
+  const system = new H3SyllableSystem(configName);
+  const [centerLat, centerLon] = system.addressToCoordinate(address);
+  
+  // H3 level 15 has ~0.5m precision, so create approximate bounds
+  // Each H3 cell is roughly hexagonal with ~0.5m radius
+  const cellRadiusKm = 0.0005; // ~0.5m in km
+  const degreeOffset = cellRadiusKm / 111; // Convert km to approximate degrees
+  
+  return {
+    north: centerLat + degreeOffset,
+    south: centerLat - degreeOffset,
+    east: centerLon + degreeOffset / Math.cos(toRadians(centerLat)),
+    west: centerLon - degreeOffset / Math.cos(toRadians(centerLat))
+  };
+}
+
+/**
+ * Cluster nearby hex addresses into groups
+ * 
+ * @param addresses - Array of hex addresses to cluster
+ * @param maxDistanceKm - Maximum distance between addresses in same cluster
+ * @param configName - Configuration to use
+ * @returns Array of clusters, each containing grouped addresses
+ * 
+ * @example
+ * ```typescript
+ * const addresses = ["addr1", "addr2", "addr3", "addr4"];
+ * const clusters = clusterAddresses(addresses, 0.5);
+ * console.log(`Found ${clusters.length} clusters`);
+ * ```
+ */
+export function clusterAddresses(
+  addresses: string[],
+  maxDistanceKm: number,
+  configName: string = 'ascii-dnqqwn'
+): Array<{ addresses: string[]; center: [number, number]; bounds: GeographicBounds }> {
+  const system = new H3SyllableSystem(configName);
+  const coords = addresses.map(addr => {
+    const [lat, lon] = system.addressToCoordinate(addr);
+    return { address: addr, lat, lon };
+  });
+  
+  const clusters: Array<{ addresses: string[]; coords: Array<{ lat: number; lon: number }> }> = [];
+  const used = new Set<number>();
+  
+  for (let i = 0; i < coords.length; i++) {
+    if (used.has(i)) continue;
+    
+    const cluster = { 
+      addresses: [coords[i].address], 
+      coords: [{ lat: coords[i].lat, lon: coords[i].lon }] 
+    };
+    used.add(i);
+    
+    for (let j = i + 1; j < coords.length; j++) {
+      if (used.has(j)) continue;
+      
+      const distance = haversineDistance(coords[i].lat, coords[i].lon, coords[j].lat, coords[j].lon);
+      if (distance <= maxDistanceKm) {
+        cluster.addresses.push(coords[j].address);
+        cluster.coords.push({ lat: coords[j].lat, lon: coords[j].lon });
+        used.add(j);
+      }
+    }
+    
+    clusters.push(cluster);
+  }
+  
+  return clusters.map(cluster => {
+    const lats = cluster.coords.map(c => c.lat);
+    const lons = cluster.coords.map(c => c.lon);
+    const centerLat = lats.reduce((a, b) => a + b, 0) / lats.length;
+    const centerLon = lons.reduce((a, b) => a + b, 0) / lons.length;
+    
+    return {
+      addresses: cluster.addresses,
+      center: [centerLat, centerLon] as [number, number],
+      bounds: {
+        north: Math.max(...lats),
+        south: Math.min(...lats),
+        east: Math.max(...lons),
+        west: Math.min(...lons)
+      }
+    };
+  });
+}
+
+/**
+ * Calculate the Haversine distance between two points in kilometers
+ */
+function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+/**
+ * Convert degrees to radians
+ */
+function toRadians(degrees: number): number {
+  return degrees * (Math.PI / 180);
+}
+
+
 // Package metadata
-export const version = '1.3.0';
+export const version = '1.3.1';
 export const author = 'Álvaro Silva';
 export const license = 'MIT';
 export const description = 'Convert GPS coordinates to memorable hex addresses';

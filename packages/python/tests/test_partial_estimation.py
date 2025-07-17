@@ -7,7 +7,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-from h3_syllable import estimate_location_from_partial, H3SyllableSystem, coordinate_to_syllable
+from h3_syllable import estimate_location_from_partial, H3SyllableSystem, coordinate_to_address
 
 def test_basic_functionality():
     """Test basic partial address estimation"""
@@ -107,7 +107,7 @@ def test_consistency_with_real_addresses():
     lat, lon = 48.8566, 2.3522
     
     # Get full address
-    full_address = coordinate_to_syllable(lat, lon, config_name)
+    full_address = coordinate_to_address(lat, lon, config_name)
     # Parse 2-character syllables from concatenated string
     parts = [full_address[i:i+2] for i in range(0, len(full_address), 2)]
     

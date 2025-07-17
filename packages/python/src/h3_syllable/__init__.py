@@ -55,8 +55,15 @@ from .h3_syllable_system import (
     list_available_configs,
     address_to_coordinate,
 )
+from .utilities import (
+    calculate_distance,
+    find_nearby_addresses,
+    get_address_bounds,
+    cluster_addresses,
+    haversine_distance,
+)
 
-__version__ = "1.2.0"
+__version__ = "1.3.1"
 __author__ = "Álvaro Silva"
 __license__ = "MIT"
 __description__ = "Convert GPS coordinates to memorable hex addresses"
@@ -88,6 +95,12 @@ __all__ = [
     "list_configs",
     "list_available_configs",
     "get_config_info",
+    # Utility functions
+    "calculate_distance",
+    "find_nearby_addresses",
+    "get_address_bounds",
+    "cluster_addresses",
+    "haversine_distance",
     # Package metadata
     "__version__",
     "__author__",

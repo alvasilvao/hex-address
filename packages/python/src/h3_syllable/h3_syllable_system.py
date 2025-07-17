@@ -1618,7 +1618,7 @@ def is_valid_address(syllable_address: str, config_name: str = None) -> bool:
         config_name = "ascii-dnqqwn"
     
     system = H3SyllableSystem(config_name)
-    return system.is_valid_address(syllable_address, detailed=detailed)
+    return system.is_valid_address(syllable_address)
 
 
 

@@ -132,3 +132,6 @@ pnpm-debug.log*
 # Generated files
 /packages/python/src/h3_syllable/configs/config_index.py
 /packages/javascript/src/configs/config-index.ts
+
+# Working documentation
+docs-working/

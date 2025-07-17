@@ -69,13 +69,22 @@ export class H3SyllableSystem {
   private configName: string;
   private syllableToIndex: Map<string, number> = new Map();
   private indexToSyllable: Map<number, string> = new Map();
-  private cache: Map<string, any> = new Map();
   private hamiltonianPath: number[] = [];
-  private readonly cacheMaxSize: number = 1000;
+  
+  // Pre-computed values for faster operations
+  private readonly consonantCount: number;
+  private readonly vowelCount: number;
+  private readonly totalSyllables: number;
 
   constructor(configName: string = 'ascii-dnqqwn') {
     this.configName = configName;
     this.config = getConfig(configName);
+    
+    // Pre-compute frequently used values
+    this.consonantCount = this.config.consonants.length;
+    this.vowelCount = this.config.vowels.length;
+    this.totalSyllables = this.consonantCount * this.vowelCount;
+    
     this.initializeSyllableTables();
     this.initializeHamiltonianPath();
   }
@@ -128,12 +137,6 @@ export class H3SyllableSystem {
     try {
       this.validateCoordinates(latitude, longitude);
 
-      // Check cache
-      const coordKey = `${Math.round(latitude * 100000000)},${Math.round(longitude * 100000000)}`;
-      if (this.cache.has(coordKey)) {
-        return this.cache.get(coordKey);
-      }
-
       // Step 1: Convert GPS Coordinates to H3 Cell ID
       const h3CellId = latLngToCell(latitude, longitude, this.config.h3_resolution);
 
@@ -146,15 +149,6 @@ export class H3SyllableSystem {
       // Step 4: Convert Integer Index to Syllable Address
       const syllableAddress = this.integerIndexToSyllableAddress(integerIndex);
 
-      // Cache result (with size limit)
-      if (this.cache.size >= this.cacheMaxSize) {
-        // Remove oldest entry (FIFO)
-        const firstKey = this.cache.keys().next().value;
-        if (firstKey !== undefined) {
-          this.cache.delete(firstKey);
-        }
-      }
-      this.cache.set(coordKey, syllableAddress);
       return syllableAddress;
     } catch (error) {
       if (error instanceof ConversionError) {
@@ -169,11 +163,6 @@ export class H3SyllableSystem {
    */
   addressToCoordinate(syllableAddress: string): Coordinates {
     try {
-      // Check cache
-      if (this.cache.has(syllableAddress)) {
-        return this.cache.get(syllableAddress);
-      }
-
       // Step 1: Convert Syllable Address to Integer Index
       const integerIndex = this.syllableAddressToIntegerIndex(syllableAddress);
 
@@ -186,17 +175,7 @@ export class H3SyllableSystem {
       // Step 4: Convert H3 Cell ID to GPS Coordinates
       const [latitude, longitude] = cellToLatLng(h3CellId);
 
-      const result: Coordinates = [latitude, longitude];
-      // Cache result (with size limit)
-      if (this.cache.size >= this.cacheMaxSize) {
-        // Remove oldest entry (FIFO)
-        const firstKey = this.cache.keys().next().value;
-        if (firstKey !== undefined) {
-          this.cache.delete(firstKey);
-        }
-      }
-      this.cache.set(syllableAddress, result);
-      return result;
+      return [latitude, longitude];
     } catch (error) {
       if (error instanceof ConversionError) {
         throw error;
@@ -722,7 +701,7 @@ export class H3SyllableSystem {
    * Get system information and statistics
    */
   getSystemInfo(): SystemInfo {
-    const totalSyllables = this.config.consonants.length * this.config.vowels.length;
+    const totalSyllables = this.totalSyllables;
     const addressSpace = totalSyllables ** this.config.address_length;
     const h3Target = 122 * (7 ** 15); // H3 Level 15 cells: 122 base cells × 7^15 hierarchical positions
 
@@ -740,10 +719,10 @@ export class H3SyllableSystem {
   }
 
   /**
-   * Clear internal cache
+   * Clear internal cache (no-op - cache removed for performance)
    */
   clearCache(): void {
-    this.cache.clear();
+    // No-op - cache has been removed as it's not beneficial for this use case
   }
 
   /**
@@ -970,7 +949,7 @@ export class H3SyllableSystem {
    * Orders syllables from coarse to fine geography (most significant first)
    */
   private integerIndexToSyllableAddress(integerIndex: number): string {
-    const totalSyllables = this.config.consonants.length * this.config.vowels.length;
+    const totalSyllables = this.totalSyllables;
     const addressSpace = totalSyllables ** this.config.address_length;
     
     if (integerIndex < 0 || integerIndex >= addressSpace) {
@@ -1019,7 +998,7 @@ export class H3SyllableSystem {
       throw new Error(`Address must have ${this.config.address_length} syllables`);
     }
     
-    const totalSyllables = this.config.consonants.length * this.config.vowels.length;
+    const totalSyllables = this.totalSyllables;
     let integerValue = 0;
     
     // Process syllables from right to left (fine to coarse) to match the reversed ordering
