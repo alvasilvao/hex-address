@@ -1,13 +1,13 @@
 import { SyllableConfig } from './types';
 
 // Import all configurations statically for browser compatibility
-import asciiDnqqwnConfig from './configs/ascii-dnqqwn.json';
+import asciiElomrConfig from './configs/ascii-elomr.json';
 
 /**
  * Pre-loaded configurations for browser and Node.js compatibility
  */
 const BUNDLED_CONFIGS: Record<string, SyllableConfig> = {
-  'ascii-dnqqwn': asciiDnqqwnConfig as SyllableConfig,
+  'ascii-elomr': asciiElomrConfig as SyllableConfig,
 };
 
 /**
@@ -30,7 +30,7 @@ export class ConfigLoader {
         // Create config object with computed properties
         const config: SyllableConfig = {
           ...configData,
-          h3_resolution: configData.h3_resolution || 15
+          h3_resolution: configData.h3_resolution || 14
         };
 
         this.configs.set(name, config);

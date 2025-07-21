@@ -31,7 +31,7 @@ class ConfigGenerator:
     """Generate configurations from character sets."""
     
     def __init__(self):
-        self.h3_target = 122 * (7 ** 15)  # 579,202,504,213,046 H3 positions
+        self.h3_target = 122 * (7 ** 14)  # 82,743,214,887,578 H3 positions
         self.config_dir = Path(__file__).parent.parent.parent / "configs"
         
         # Define character sets (alphabets)
@@ -150,7 +150,7 @@ class ConfigGenerator:
             'consonants': sorted(consonants),
             'vowels': sorted(vowels),
             'address_length': min_length,
-            'h3_resolution': 15,
+            'h3_resolution': 14,
             'metadata': {
                 'alphabet': alphabet_name,
                 'base26_identifier': base26_id,
@@ -392,10 +392,10 @@ def main():
     # INTERNATIONAL STANDARD LETTER SET
     # Uses 15 consonants optimized for global clarity and pronunciation
     letter_sets = [
-        # INTERNATIONAL STANDARD - 15 consonants optimized for global clarity
+        # INTERNATIONAL STANDARD - 11 consonants optimized for global clarity
         {
-            'letters': list('sptkmnlfrwhvjzdaeiou'),  # 15C × 5V = 75 syllables → 8 length
-            'description': 'International standard - consonants exist in virtually all world languages, avoid confusion pairs (b/p, g/k), include sounds from different parts of mouth for acoustic separation, overlap with NATO phonetic alphabet tested across 31 countries'
+            'letters': list('dfhklmnprstaeiou'),  # 11C × 5V = 55 syllables → 8 length
+            'description': 'International standard - 11 consonants optimized for global clarity and pronunciation, 3m precision using H3 resolution 14'
         }
     ]
     

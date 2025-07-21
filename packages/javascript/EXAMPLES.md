@@ -70,7 +70,7 @@ addresses.forEach(addr => {
 import { isValidAddress } from '@alvarosilva/hex-address';
 
 function validateWithDetails(address: string) {
-  const result = isValidAddress(address, 'ascii-dnqqwn', true);
+  const result = isValidAddress(address, 'ascii-elomr', true);
   
   console.log(`\nValidating: "${address}"`);
   console.log(`Valid: ${result.isValid}`);
@@ -193,7 +193,7 @@ const configs = listAvailableConfigs();
 console.log('Available configurations:', configs);
 
 // Get detailed info about a configuration
-const configInfo = getConfigInfo('ascii-dnqqwn');
+const configInfo = getConfigInfo('ascii-elomr');
 console.log('\nConfiguration details:');
 console.log(`Name: ${configInfo.name}`);
 console.log(`Total syllables: ${configInfo.totalSyllables}`);
@@ -379,7 +379,7 @@ function safeAddressToCoordinate(address: string): [number, number] | null {
     // First validate the address
     if (!isValidAddress(address)) {
       // Get detailed validation info
-      const validation = isValidAddress(address, 'ascii-dnqqwn', true);
+      const validation = isValidAddress(address, 'ascii-elomr', true);
       console.error('Invalid address:', validation.errors);
       return null;
     }

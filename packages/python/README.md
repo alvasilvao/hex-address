@@ -152,7 +152,7 @@ address = coordinate_to_syllable(48.8566, 2.3522, config_name='ascii-cjbnb')
 
 ## 📖 Documentation
 
-For complete documentation, architecture details, and live demo, visit the [Hex Address App](https://hex-address-app.vercel.app/).
+For complete documentation, architecture details, and live demo, visit the [Hex Address App](https://spotcode.app/).
 
 ## 🤝 Contributing
 

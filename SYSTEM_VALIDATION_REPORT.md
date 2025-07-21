@@ -7,7 +7,7 @@ The H3 Syllable System has been successfully validated through comprehensive tes
 ## 📊 Test Results Overview
 
 ### Configuration Generation Validation
-- **Target Calculation**: ✅ PASSED - Correctly targets 122 × 7^15 = 579,202,504,213,046 H3 hierarchical positions
+- **Target Calculation**: ✅ PASSED - Correctly targets 122 × 7^14 = 82,743,214,887,578 H3 hierarchical positions
 - **Constraint Calculation**: ✅ PASSED - Exact mathematical formula for max_consecutive = 1
 - **Minimum Length Finding**: ✅ PASSED - Finds optimal address length for coverage
 - **Base26 Naming**: ✅ PASSED - Unique identifiers from binary letter selection
@@ -17,14 +17,14 @@ The H3 Syllable System has been successfully validated through comprehensive tes
 ### Comprehensive Functionality Testing
 - **5,000 coordinate tests** across 5 ASCII configurations
 - **100% success rate** for all tests
-- **Sub-meter accuracy** (average 0.360m error)
+- **Meter-level accuracy** (average ~3m error)
 - **Excellent performance** (~6,700 conversions/second)
 - **Perfect bidirectional validation** for all test cases
 
 ## 🔧 Technical Specifications
 
 ### Configuration System
-- **Target**: 579,202,504,213,046 H3 hierarchical positions
+- **Target**: 82,743,214,887,578 H3 hierarchical positions
 - **Constraint**: max_consecutive = 1 (fixed)
 - **Calculation**: Exact mathematical formula (no approximations)
 - **Naming**: ascii-base26index format (pure ASCII only)
@@ -32,7 +32,7 @@ The H3 Syllable System has been successfully validated through comprehensive tes
 - **Coverage**: Minimal required (no excess coverage optimization)
 
 ### Runtime Performance
-- **Accuracy**: 0.360m average error (sub-meter precision)
+- **Accuracy**: ~3m average error (meter-level precision)
 - **Speed**: ~6,700 coordinate conversions per second
 - **Reliability**: 100% success rate across all test cases
 - **Memory**: Hardcoded level 0 mapping for optimal performance
@@ -90,12 +90,12 @@ The H3 Syllable System has been successfully validated through comprehensive tes
 - **Average error**: 0.360 meters
 - **Maximum error**: 0.639 meters
 - **Success rate**: 100.00%
-- **Precision**: Sub-meter (H3 Level 15 resolution)
+- **Precision**: Meter-level (H3 Level 14 resolution)
 
 ## ✅ Validation Checklist
 
 ### Configuration Generation
-- [x] Targets correct H3 hierarchical space (122 × 7^15)
+- [x] Targets correct H3 hierarchical space (122 × 7^14)
 - [x] Uses exact mathematical calculations for max_consecutive = 1
 - [x] Finds minimum address length needed for coverage
 - [x] Generates optimal configurations with base26 naming
@@ -124,7 +124,7 @@ The H3 Syllable System has been thoroughly validated and is ready for production
 - **Optimal spatial organization** through Hamiltonian path optimization
 - **Robust configuration system** with alphabet-based generation
 - **Comprehensive validation** with 800,000+ test cases
-- **Excellent performance** with sub-meter precision
+- **Excellent performance** with meter-level precision
 
 **Ready for:**
 - Production deployment

@@ -118,9 +118,9 @@ describe('Edge Cases', () => {
         
         expect(typeof address).toBe('string');
         
-        // H3 precision should be within sub-meter accuracy
-        expect(Math.abs(resultLat - lat)).toBeLessThan(0.00001);
-        expect(Math.abs(resultLon - lon)).toBeLessThan(0.00001);
+        // H3 precision should be within ~3m accuracy for resolution 14
+        expect(Math.abs(resultLat - lat)).toBeLessThan(0.00002);
+        expect(Math.abs(resultLon - lon)).toBeLessThan(0.00002);
       });
     });
 
@@ -283,7 +283,7 @@ describe('Edge Cases', () => {
     });
 
     test('should handle config-specific edge cases', () => {
-      const configs = ['ascii-dnqqwn']; // Test main config
+      const configs = ['ascii-elomr']; // Test main config
       
       configs.forEach(configName => {
         const system = new H3SyllableSystem(configName);

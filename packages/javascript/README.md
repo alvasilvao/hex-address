@@ -5,7 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Convert GPS coordinates to memorable hex addresses like `dinenunukiwufeme` with ~0.5 meter precision using H3 spatial indexing.
+Convert GPS coordinates to memorable hex addresses like `dinenunukiwufeme` with ~3 meter precision using H3 spatial indexing.
 
 ## 🚀 Quick Start
 
@@ -44,7 +44,7 @@ const coords: [number, number] = [48.8566, 2.3522];
 const address: string = coordinateToAddress(...coords);
 
 // Advanced validation with error details
-const validation: ValidationResult = isValidAddress(address, 'ascii-dnqqwn', true);
+const validation: ValidationResult = isValidAddress(address, 'ascii-elomr', true);
 if (!validation.isValid) {
   validation.errors.forEach(error => {
     console.log(`Error: ${error.message}`);
@@ -66,7 +66,7 @@ console.log(address); // "dinenunukiwufeme"
 ## 📋 Features
 
 ### Core Features
-- **Sub-meter precision** (~0.5m) using H3 Level 15
+- **Meter-level precision** (~3m) using H3 Level 14
 - **Memorable addresses** using pronounceable syllables
 - **Perfect reversibility** for all real coordinates
 - **TypeScript support** with full type definitions
@@ -121,7 +121,7 @@ console.log(`Organized into ${clusters.length} clusters`);
 const isValid = isValidAddress("dinenunukiwufeme"); // returns boolean
 
 // Detailed validation with phonetic suggestions
-const result = isValidAddress("helloworld", "ascii-dnqqwn", true);
+const result = isValidAddress("helloworld", "ascii-elomr", true);
 if (!result.isValid) {
   result.errors.forEach(error => {
     console.log(`[${error.type}] ${error.message}`);
@@ -237,7 +237,7 @@ Choose from multiple configurations optimized for different languages and use ca
 
 ```javascript
 // Default configuration (21 consonants, 5 vowels)
-const system = new H3SyllableSystem('ascii-dnqqwn'); // Default
+const system = new H3SyllableSystem('ascii-elomr'); // Default
 
 // Japanese-friendly (no L/R confusion)
 const system2 = new H3SyllableSystem('ascii-fqwclj');
@@ -254,8 +254,8 @@ configs.forEach(config => {
 
 ## 🔬 Technical Details
 
-- **Precision**: ~0.5 meter accuracy (H3 Resolution 15)
-- **Coverage**: Global coverage with 122 × 7^15 ≈ 579 trillion addresses
+- **Precision**: ~3 meter accuracy (H3 Resolution 14)
+- **Coverage**: Global coverage with 122 × 7^14 ≈ 82.7 trillion addresses
 - **Performance**: Optimized with caching and efficient algorithms
 - **Memory**: Minimal footprint with configurable cache limits
 - **Browser Support**: Works in all modern browsers with polyfills

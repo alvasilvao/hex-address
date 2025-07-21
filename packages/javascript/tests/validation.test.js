@@ -28,15 +28,15 @@ describe('Validation Functions', () => {
     });
 
     test('should handle different configurations', () => {
-      const address = coordinateToAddress(48.8566, 2.3522, 'ascii-dnqqwn');
-      expect(isValidAddress(address, 'ascii-dnqqwn')).toBe(true);
+      const address = coordinateToAddress(48.8566, 2.3522, 'ascii-elomr');
+      expect(isValidAddress(address, 'ascii-elomr')).toBe(true);
     });
   });
 
   describe('isValidAddress - Detailed validation', () => {
     test('should return ValidationResult for valid addresses', () => {
       const address = coordinateToAddress(48.8566, 2.3522);
-      const result = isValidAddress(address, 'ascii-dnqqwn', true);
+      const result = isValidAddress(address, 'ascii-elomr', true);
       
       expect(typeof result).toBe('object');
       expect(result).toHaveProperty('isValid');
@@ -50,7 +50,7 @@ describe('Validation Functions', () => {
     });
 
     test('should provide detailed errors for invalid syllables', () => {
-      const result = isValidAddress('xyxyxyxyxyxyxyxy', 'ascii-dnqqwn', true);
+      const result = isValidAddress('xyxyxyxyxyxyxyxy', 'ascii-elomr', true);
       
       expect(result.isValid).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
@@ -67,7 +67,7 @@ describe('Validation Functions', () => {
     });
 
     test('should provide suggestions for invalid syllables', () => {
-      const result = isValidAddress('helloworldxyzyxy', 'ascii-dnqqwn', true);
+      const result = isValidAddress('helloworldxyzyxy', 'ascii-elomr', true);
       
       expect(result.isValid).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
@@ -91,14 +91,14 @@ describe('Validation Functions', () => {
     });
 
     test('should handle wrong length with appropriate error', () => {
-      const result = isValidAddress('di', 'ascii-dnqqwn', true);
+      const result = isValidAddress('di', 'ascii-elomr', true);
       
       expect(result.isValid).toBe(false);
       expect(result.errors.some(error => error.type === 'length')).toBe(true);
     });
 
     test('should handle empty address', () => {
-      const result = isValidAddress('', 'ascii-dnqqwn', true);
+      const result = isValidAddress('', 'ascii-elomr', true);
       
       expect(result.isValid).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
@@ -113,7 +113,7 @@ describe('Validation Functions', () => {
       ];
       
       testCases.forEach(testAddress => {
-        const result = isValidAddress(testAddress, 'ascii-dnqqwn', true);
+        const result = isValidAddress(testAddress, 'ascii-elomr', true);
         
         if (!result.isValid) {
           const suggestedErrors = result.errors.filter(error => error.suggestions);
@@ -131,7 +131,7 @@ describe('Validation Functions', () => {
     });
 
     test('should maintain validParts information', () => {
-      const result = isValidAddress('dinenunuxyxyxyxy', 'ascii-dnqqwn', true);
+      const result = isValidAddress('dinenunuxyxyxyxy', 'ascii-elomr', true);
       
       expect(Array.isArray(result.validParts)).toBe(true);
       // Should have some valid parts even if overall invalid
@@ -180,8 +180,8 @@ describe('Validation Functions', () => {
     });
 
     test('should work with different configurations', () => {
-      const address = coordinateToAddress(48.8566, 2.3522, 'ascii-dnqqwn');
-      const analysis = analyzeAddress(address, 'ascii-dnqqwn');
+      const address = coordinateToAddress(48.8566, 2.3522, 'ascii-elomr');
+      const analysis = analyzeAddress(address, 'ascii-elomr');
       
       expect(analysis.isValid).toBe(true);
       expect(analysis.address).toBe(address);
@@ -204,8 +204,8 @@ describe('Validation Functions', () => {
         const testWord1 = char1 + 'ello';
         const testWord2 = char2 + 'ello';
         
-        const result1 = isValidAddress(testWord1, 'ascii-dnqqwn', true);
-        const result2 = isValidAddress(testWord2, 'ascii-dnqqwn', true);
+        const result1 = isValidAddress(testWord1, 'ascii-elomr', true);
+        const result2 = isValidAddress(testWord2, 'ascii-elomr', true);
         
         // If one is invalid, it should suggest the other as an alternative
         if (!result1.isValid) {
@@ -229,7 +229,7 @@ describe('Validation Functions', () => {
       
       vowelPairs.forEach(([vowel1, vowel2]) => {
         const testWord = 'h' + vowel1 + 'll' + vowel2;
-        const result = isValidAddress(testWord, 'ascii-dnqqwn', true);
+        const result = isValidAddress(testWord, 'ascii-elomr', true);
         
         if (!result.isValid && result.errors.some(error => error.suggestions)) {
           // Should have suggestions for vowel confusions
@@ -250,7 +250,7 @@ describe('Validation Functions', () => {
       ];
       
       testCases.forEach(({ input, expectedTypes }) => {
-        const result = isValidAddress(input, 'ascii-dnqqwn', true);
+        const result = isValidAddress(input, 'ascii-elomr', true);
         
         expect(result.isValid).toBe(false);
         expect(result.errors.length).toBeGreaterThan(0);
@@ -269,7 +269,7 @@ describe('Validation Functions', () => {
     });
 
     test('should provide position information when relevant', () => {
-      const result = isValidAddress('dinenunuxyxyxyxy', 'ascii-dnqqwn', true);
+      const result = isValidAddress('dinenunuxyxyxyxy', 'ascii-elomr', true);
       
       if (!result.isValid) {
         const positionErrors = result.errors.filter(error => error.position !== undefined);
@@ -285,7 +285,7 @@ describe('Validation Functions', () => {
   describe('Performance and edge cases', () => {
     test('should handle very long invalid addresses', () => {
       const longInvalidAddress = 'x'.repeat(100);
-      const result = isValidAddress(longInvalidAddress, 'ascii-dnqqwn', true);
+      const result = isValidAddress(longInvalidAddress, 'ascii-elomr', true);
       
       expect(result.isValid).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
@@ -295,7 +295,7 @@ describe('Validation Functions', () => {
       const specialChars = ['hello@world', 'test#123', 'address$', 'name%'];
       
       specialChars.forEach(address => {
-        const result = isValidAddress(address, 'ascii-dnqqwn', true);
+        const result = isValidAddress(address, 'ascii-elomr', true);
         expect(result.isValid).toBe(false);
         // Special characters will be detected as syllable errors or format errors
         const hasRelevantError = result.errors.some(error => 
@@ -309,7 +309,7 @@ describe('Validation Functions', () => {
       const unicodeAddresses = ['héllo', 'wörld', 'tëst', 'ñame'];
       
       unicodeAddresses.forEach(address => {
-        const result = isValidAddress(address, 'ascii-dnqqwn', true);
+        const result = isValidAddress(address, 'ascii-elomr', true);
         expect(result.isValid).toBe(false);
         // Should detect format issues with non-ASCII characters
       });
@@ -325,7 +325,7 @@ describe('Validation Functions', () => {
       
       testAddresses.forEach(address => {
         const simple = isValidAddress(address);
-        const detailed = isValidAddress(address, 'ascii-dnqqwn', true);
+        const detailed = isValidAddress(address, 'ascii-elomr', true);
         
         expect(simple).toBe(detailed.isValid);
       });

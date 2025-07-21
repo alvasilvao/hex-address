@@ -11,7 +11,7 @@ A human-friendly addressing system that converts GPS coordinates to memorable sy
 
 ## 🎯 Overview
 
-Transform GPS coordinates into easy-to-remember syllable addresses like `dinenunukiwufeme`. This system provides sub-meter precision (~0.5m) while maintaining perfect reversibility and human readability.
+Transform GPS coordinates into easy-to-remember syllable addresses like `dinenunukiwufeme`. This system provides meter-level precision (~3m) while maintaining perfect reversibility and human readability.
 
 ### Why Hex Address?
 
@@ -21,12 +21,23 @@ Transform GPS coordinates into easy-to-remember syllable addresses like `dinenun
 
 ### Core Features
 
-- **🎯 Sub-meter precision**: ~0.5 meter accuracy using H3 resolution 15
+- **🎯 Meter-level precision**: ~3 meter accuracy using H3 resolution 14
 - **🗣️ Human-readable**: Syllable addresses using consonant-vowel pairs for easy pronunciation
 - **🔄 Perfectly reversible**: Bijective mapping between coordinates and syllables
 - **🗺️ Spatially optimized**: Hamiltonian path ordering for 6.0x improved spatial locality
 - **🌍 Pure ASCII**: Uses only basic Latin letters for global compatibility
 - **⚡ Minimal syllables**: Automatically finds minimum address length needed
+
+### 📱 Why Resolution 14?
+
+We use H3 resolution level 14 (~3m precision) instead of the maximum resolution 15 (~0.5m precision) because:
+
+- **📱 Phone GPS Reality**: Modern smartphones typically achieve 3-5 meter accuracy under normal conditions
+- **⚖️ Practical Balance**: Resolution 14 provides sufficient precision for real-world use cases while maintaining efficiency
+- **🔋 Reduced Complexity**: Shorter computational requirements and smaller address space
+- **🌐 Global Consistency**: Consistent precision expectations worldwide, regardless of local GPS infrastructure
+
+This makes our system more aligned with actual device capabilities and user expectations.
 
 ### Real-World Applications
 
@@ -243,9 +254,9 @@ The system currently includes one optimized configuration:
 | **ascii-dnqqwn** | 20 | 15 | 5 | 8 | Basic Latin alphabet, optimized for global compatibility (default) |
 
 **Configuration Details:**
-- **Consonants**: d, f, h, j, k, l, m, n, p, r, s, t, v, w, z (15 letters)
+- **Consonants**: d, f, h, k, l, m, n, p, r, s, t (11 letters)
 - **Vowels**: a, e, i, o, u (5 letters)
-- **Total Syllables**: 75 (15 × 5)
+- **Total Syllables**: 55 (11 × 5)
 - **Address Space**: 986,912,191,996,800 possible addresses
 - **Coverage**: 1.70x of required H3 space for global precision
 
@@ -317,8 +328,8 @@ const isValid = system.isValidAddress(address);
 ## 🔬 Technical Details
 
 ### Precision & Coverage
-- **H3 Resolution 15**: ~0.5 meter precision
-- **Target Coverage**: 122 × 7^15 = 579,202,504,213,046 H3 positions
+- **H3 Resolution 14**: ~3 meter precision
+- **Target Coverage**: 122 × 7^14 = 82,743,214,887,578 H3 positions
 - **Algorithm**: Exact mathematical calculation (no approximations)
 
 ### Address Generation Algorithm
@@ -336,11 +347,11 @@ const isValid = system.isValidAddress(address);
 
 ### System Configuration
 The Bologna example uses these parameters:
-- **Consonants (15)**: [d, f, h, j, k, l, m, n, p, r, s, t, v, w, z]
+- **Consonants (11)**: [d, f, h, k, l, m, n, p, r, s, t]
 - **Vowels (5)**: [a, e, i, o, u]  
-- **Total syllables**: 75 (15 × 5)
+- **Total syllables**: 55 (11 × 5)
 - **Address length**: 8 syllables
-- **H3 resolution**: 15 (~0.5m precision)
+- **H3 resolution**: 14 (~3m precision)
 
 ---
 
@@ -489,7 +500,7 @@ Converted result:     44.494902°N, 11.342603°E
 Precision error:      0.0000016° lat, 0.0000034° lon
 Distance error:       0.32 meters
 ```
-**Perfect round-trip accuracy within H3's ~0.5m cell precision.**
+**Perfect round-trip accuracy within H3's ~3m cell precision.**
 
 ### Spatial Optimization
 - **Perfect adjacency**: 100% spatial locality through Hamiltonian path
@@ -518,7 +529,7 @@ python3 scripts/tests/validate_config_generation.py
 
 ### Test Results
 - **100% success rate** across all configurations
-- **Sub-meter accuracy** maintained globally
+- **Meter-level accuracy** maintained globally
 - **Perfect round-trip** conversion accuracy
 - **5,000+ coordinates tested** with diverse global distribution
 

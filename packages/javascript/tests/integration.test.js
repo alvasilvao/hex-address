@@ -17,7 +17,7 @@ describe('Round-trip conversion tests', () => {
 
   test('Basic round-trip test with safe config', () => {
     const [lat, lng] = [48.8566, 2.3522]; // Paris
-    const configName = 'ascii-dnqqwn'; // International standard config (15C×5V, 8 syllables)
+    const configName = 'ascii-elomr'; // International standard config (11C×5V, 8 syllables)
     
     // Step 1: Convert coordinates to syllable address
     const syllableAddress = coordinateToAddress(lat, lng, configName);
@@ -35,18 +35,18 @@ describe('Round-trip conversion tests', () => {
     expect(typeof resultLat).toBe('number');
     expect(typeof resultLng).toBe('number');
     
-    // H3 at resolution 15 has ~0.5m precision, so coordinates should be very close
+    // H3 at resolution 14 has ~3m precision, so coordinates should be close
     const latDiff = Math.abs(resultLat - lat);
     const lngDiff = Math.abs(resultLng - lng);
     
     console.log(`Difference: lat=${latDiff}, lng=${lngDiff}`);
     
-    expect(latDiff).toBeLessThan(0.00001); // ~1m tolerance (H3 precision limit)
-    expect(lngDiff).toBeLessThan(0.00001);
+    expect(latDiff).toBeLessThan(0.00005); // ~5m tolerance (H3 precision limit)
+    expect(lngDiff).toBeLessThan(0.00005);
   });
 
   test('Round-trip test for multiple coordinates', () => {
-    const configName = 'ascii-dnqqwn'; // International standard config
+    const configName = 'ascii-elomr'; // International standard config
     
     for (const [lat, lng] of testCoordinates.slice(0, 3)) { // Test first 3 to keep it fast
       const syllableAddress = coordinateToAddress(lat, lng, configName);
@@ -57,15 +57,15 @@ describe('Round-trip conversion tests', () => {
       
       console.log(`[${lat}, ${lng}] -> "${syllableAddress}" -> [${resultLat}, ${resultLng}] (diff: ${latDiff.toFixed(6)}, ${lngDiff.toFixed(6)})`);
       
-      expect(latDiff).toBeLessThan(0.00001); // ~1m tolerance
-      expect(lngDiff).toBeLessThan(0.00001);
+      expect(latDiff).toBeLessThan(0.00002); // ~2m tolerance for resolution 14
+      expect(lngDiff).toBeLessThan(0.00002);
     }
   });
 
   test('International standard config should work', () => {
     const [lat, lng] = [48.8566, 2.3522];
     // Test the international standard config
-    const configName = 'ascii-dnqqwn';
+    const configName = 'ascii-elomr';
     
     {
       const syllableAddress = coordinateToAddress(lat, lng, configName);
@@ -73,8 +73,8 @@ describe('Round-trip conversion tests', () => {
       
       console.log(`${configName}: [${lat}, ${lng}] -> "${syllableAddress}" -> [${resultLat}, ${resultLng}]`);
       
-      expect(Math.abs(resultLat - lat)).toBeLessThan(0.00001); // ~1m tolerance
-      expect(Math.abs(resultLng - lng)).toBeLessThan(0.00001);
+      expect(Math.abs(resultLat - lat)).toBeLessThan(0.00002); // ~2m tolerance for resolution 14
+      expect(Math.abs(resultLng - lng)).toBeLessThan(0.00002);
     }
   });
 
@@ -84,7 +84,7 @@ describe('Round-trip conversion tests', () => {
   });
 
   test('Consistency test', () => {
-    const config = 'ascii-dnqqwn'; // International standard config
+    const config = 'ascii-elomr'; // International standard config
     const coords = [48.8566, 2.3522];
     
     const address1 = coordinateToAddress(coords[0], coords[1], config);
@@ -96,7 +96,7 @@ describe('Round-trip conversion tests', () => {
 
 describe('Partial address estimation tests', () => {
   test('Basic partial address estimation', () => {
-    const configName = 'ascii-dnqqwn';
+    const configName = 'ascii-elomr';
     const result = estimateLocationFromPartial('dafe', configName);
     
     // Check return type and structure
@@ -129,7 +129,7 @@ describe('Partial address estimation tests', () => {
   });
   
   test('Different completeness levels', () => {
-    const configName = 'ascii-dnqqwn';
+    const configName = 'ascii-elomr';
     
     const tests = [
       { partial: 'da', expected: 1 },
@@ -154,7 +154,7 @@ describe('Partial address estimation tests', () => {
   });
   
   test('Partial consonant support', () => {
-    const configName = 'ascii-dnqqwn';
+    const configName = 'ascii-elomr';
     
     // Test partial consonant estimation
     const result = estimateLocationFromPartial('papap', configName);
@@ -176,7 +176,7 @@ describe('Partial address estimation tests', () => {
   });
   
   test('Partial consonant validation', () => {
-    const configName = 'ascii-dnqqwn';
+    const configName = 'ascii-elomr';
     
     // Valid partial consonant
     expect(() => estimateLocationFromPartial('dafep', configName)).not.toThrow();
@@ -190,7 +190,7 @@ describe('Partial address estimation tests', () => {
   });
   
   test('Partial consonant area comparison', () => {
-    const configName = 'ascii-dnqqwn';
+    const configName = 'ascii-elomr';
     
     const completeResult = estimateLocationFromPartial('papa', configName);
     const partialResult = estimateLocationFromPartial('papap', configName);
@@ -205,7 +205,7 @@ describe('Partial address estimation tests', () => {
   });
 
   test('Error handling for partial addresses', () => {
-    const configName = 'ascii-dnqqwn';
+    const configName = 'ascii-elomr';
     
     // Empty partial address
     expect(() => estimateLocationFromPartial('', configName)).toThrow();

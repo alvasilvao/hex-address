@@ -1,11 +1,10 @@
 {
-  "name": "ascii-dnqqwn",
-  "description": "Basic Latin alphabet, 15 consonants, 5 vowels, 8 syllables",
+  "name": "ascii-elomr",
+  "description": "Basic Latin alphabet, 11 consonants, 5 vowels, 8 syllables",
   "consonants": [
     "d",
     "f",
     "h",
-    "j",
     "k",
     "l",
     "m",
@@ -13,10 +12,7 @@
     "p",
     "r",
     "s",
-    "t",
-    "v",
-    "w",
-    "z"
+    "t"
   ],
   "vowels": [
     "a",
@@ -26,10 +22,10 @@
     "u"
   ],
   "address_length": 8,
-  "h3_resolution": 15,
+  "h3_resolution": 14,
   "metadata": {
     "alphabet": "ascii",
-    "base26_identifier": "dnqqwn",
+    "base26_identifier": "elomr",
     "binary_array": [
       1,
       0,
@@ -40,13 +36,6 @@
       0,
       1,
       1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
       0,
       1,
       1,
@@ -55,8 +44,15 @@
       1,
       1,
       0,
+      1,
+      1,
+      1,
+      1,
       0,
-      1
+      0,
+      0,
+      0,
+      0
     ],
     "selected_letters": [
       "a",
@@ -65,7 +61,6 @@
       "f",
       "h",
       "i",
-      "j",
       "k",
       "l",
       "m",
@@ -75,17 +70,14 @@
       "r",
       "s",
       "t",
-      "u",
-      "v",
-      "w",
-      "z"
+      "u"
     ],
     "auto_generated": true,
     "generation_method": "international_standard",
-    "total_syllables": 75,
-    "total_combinations": 1001129150390625,
-    "h3_target_space": 579202504213046,
-    "coverage_ratio": 1.728461363872804,
-    "coverage_multiple": "1.73x"
+    "total_syllables": 55,
+    "total_combinations": 83733937890625,
+    "h3_target_space": 82743214887578,
+    "coverage_ratio": 1.0119734651885726,
+    "coverage_multiple": "1.01x"
   }
 }

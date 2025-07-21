@@ -185,7 +185,7 @@
             if (!address) return;
             
             try {
-                const result = HexAddress.isValidAddress(address, 'ascii-dnqqwn', true);
+                const result = HexAddress.isValidAddress(address, 'ascii-elomr', true);
                 let html = `Address "${address}" is <strong>${result.isValid ? 'VALID' : 'INVALID'}</strong><br>`;
                 
                 if (!result.isValid) {
@@ -235,7 +235,7 @@
                 
                 worker.postMessage({
                     type: 'coordinateToAddress',
-                    data: { lat: 48.8566, lon: 2.3522, configName: 'ascii-dnqqwn' }
+                    data: { lat: 48.8566, lon: 2.3522, configName: 'ascii-elomr' }
                 });
                 
                 worker.onmessage = function(e) {
@@ -251,7 +251,7 @@
                         // Test validation in worker
                         worker.postMessage({
                             type: 'isValidAddress',
-                            data: { address: e.data.data, configName: 'ascii-dnqqwn', detailed: true }
+                            data: { address: e.data.data, configName: 'ascii-elomr', detailed: true }
                         });
                     } else if (e.data.type === 'error') {
                         resultDiv.innerHTML = `<span style="color: red;">Worker Error: ${e.data.data}</span>`;

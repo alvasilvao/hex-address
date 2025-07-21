@@ -41,7 +41,7 @@ describe('Core Functions', () => {
 
     test('should use different configurations', () => {
       const coords = [48.8566, 2.3522];
-      const configs = ['ascii-dnqqwn'];
+      const configs = ['ascii-elomr'];
       
       configs.forEach(config => {
         const address = coordinateToAddress(...coords, config);
@@ -96,8 +96,8 @@ describe('Core Functions', () => {
 
     test('should work with different configurations', () => {
       const coords = [48.8566, 2.3522];
-      const address = coordinateToAddress(...coords, 'ascii-dnqqwn');
-      const [lat, lon] = addressToCoordinate(address, 'ascii-dnqqwn');
+      const address = coordinateToAddress(...coords, 'ascii-elomr');
+      const [lat, lon] = addressToCoordinate(address, 'ascii-elomr');
       
       expect(typeof lat).toBe('number');
       expect(typeof lon).toBe('number');
@@ -117,7 +117,7 @@ describe('Core Functions', () => {
     });
 
     test('should create system with specific configuration', () => {
-      const system = new H3SyllableSystem('ascii-dnqqwn');
+      const system = new H3SyllableSystem('ascii-elomr');
       expect(system).toBeInstanceOf(H3SyllableSystem);
     });
 
@@ -265,7 +265,7 @@ describe('Core Functions', () => {
       const fullAddress = coordinateToAddress(48.8566, 2.3522);
       const partialAddress = fullAddress.substring(0, 6);
       
-      const estimate = estimateLocationFromPartial(partialAddress, 'ascii-dnqqwn', true);
+      const estimate = estimateLocationFromPartial(partialAddress, 'ascii-elomr', true);
       
       expect(typeof estimate).toBe('object');
       expect(estimate.confidence).toBeGreaterThan(0);

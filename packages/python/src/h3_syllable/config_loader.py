@@ -21,7 +21,7 @@ class SyllableConfig:
     consonants: List[str]
     vowels: List[str]
     address_length: int
-    h3_resolution: int = 15
+    h3_resolution: int = 14
     metadata: Dict = None
 
     def __post_init__(self):

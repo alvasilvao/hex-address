@@ -8,7 +8,7 @@
  * import { H3SyllableSystem, isValidSyllableAddress } from 'hex-address';
  * 
  * // Initialize system
- * const system = new H3SyllableSystem('ascii-dnqqwn');
+ * const system = new H3SyllableSystem('ascii-elomr');
  * 
  * // Convert coordinates to syllable address
  * const address = system.coordinateToAddress(48.8566, 2.3522);
@@ -55,7 +55,7 @@ import { PartialLocationEstimate, AddressAnalysis, ValidationResult, GeographicB
 export function coordinateToAddress(
   latitude: number,
   longitude: number,
-  configName: string = 'ascii-dnqqwn'
+  configName: string = 'ascii-elomr'
 ): string {
   const system = new H3SyllableSystem(configName);
   return system.coordinateToAddress(latitude, longitude);
@@ -66,7 +66,7 @@ export function coordinateToAddress(
  */
 export function addressToCoordinate(
   syllableAddress: string,
-  configName: string = 'ascii-dnqqwn'
+  configName: string = 'ascii-elomr'
 ): [number, number] {
   const system = new H3SyllableSystem(configName);
   return system.addressToCoordinate(syllableAddress);
@@ -89,7 +89,7 @@ export function addressToCoordinate(
  * isValidAddress("invalid") // → false
  * 
  * // Detailed validation with phonetic suggestions
- * const result = isValidAddress("helloworld", "ascii-dnqqwn", true);
+ * const result = isValidAddress("helloworld", "ascii-elomr", true);
  * console.log(result.errors[0].suggestions); // → ['fello', 'jello', 'mello']
  * ```
  */
@@ -107,7 +107,7 @@ export function isValidAddress(
   configName?: string,
   detailed?: boolean
 ): boolean | ValidationResult {
-  const system = new H3SyllableSystem(configName || 'ascii-dnqqwn');
+  const system = new H3SyllableSystem(configName || 'ascii-elomr');
   
   if (detailed) {
     return system.isValidAddress(syllableAddress, detailed);
@@ -126,7 +126,7 @@ export function isValidAddress(
  */
 export function estimateLocationFromPartial(
   partialAddress: string,
-  configName: string = 'ascii-dnqqwn',
+  configName: string = 'ascii-elomr',
   comprehensive: boolean = false
 ): PartialLocationEstimate {
   const system = new H3SyllableSystem(configName);
@@ -152,7 +152,7 @@ export function estimateLocationFromPartial(
  */
 export function analyzeAddress(
   syllableAddress: string,
-  configName: string = 'ascii-dnqqwn'
+  configName: string = 'ascii-elomr'
 ): AddressAnalysis {
   const system = new H3SyllableSystem(configName);
   return system.analyzeAddress(syllableAddress);
@@ -243,7 +243,7 @@ export function findConfigsByLetters(letters: string[]): string[] {
  * const distance = calculateDistance(
  *   "dinenunukiwufeme", 
  *   "dinenunukiwufene", 
- *   "ascii-dnqqwn"
+ *   "ascii-elomr"
  * );
  * console.log(`Distance: ${distance.toFixed(2)} km`);
  * ```
@@ -251,7 +251,7 @@ export function findConfigsByLetters(letters: string[]): string[] {
 export function calculateDistance(
   address1: string,
   address2: string,
-  configName: string = 'ascii-dnqqwn'
+  configName: string = 'ascii-elomr'
 ): number {
   const system = new H3SyllableSystem(configName);
   const [lat1, lon1] = system.addressToCoordinate(address1);
@@ -279,7 +279,7 @@ export function calculateDistance(
 export function findNearbyAddresses(
   centerAddress: string,
   radiusKm: number,
-  configName: string = 'ascii-dnqqwn'
+  configName: string = 'ascii-elomr'
 ): Array<{ address: string; distance: number; coordinates: [number, number] }> {
   const system = new H3SyllableSystem(configName);
   const [centerLat, centerLon] = system.addressToCoordinate(centerAddress);
@@ -329,14 +329,14 @@ export function findNearbyAddresses(
  */
 export function getAddressBounds(
   address: string,
-  configName: string = 'ascii-dnqqwn'
+  configName: string = 'ascii-elomr'
 ): GeographicBounds {
   const system = new H3SyllableSystem(configName);
   const [centerLat, centerLon] = system.addressToCoordinate(address);
   
-  // H3 level 15 has ~0.5m precision, so create approximate bounds
-  // Each H3 cell is roughly hexagonal with ~0.5m radius
-  const cellRadiusKm = 0.0005; // ~0.5m in km
+  // H3 level 14 has ~3m precision, so create approximate bounds
+  // Each H3 cell is roughly hexagonal with ~3m radius
+  const cellRadiusKm = 0.003; // ~3m in km
   const degreeOffset = cellRadiusKm / 111; // Convert km to approximate degrees
   
   return {
@@ -365,7 +365,7 @@ export function getAddressBounds(
 export function clusterAddresses(
   addresses: string[],
   maxDistanceKm: number,
-  configName: string = 'ascii-dnqqwn'
+  configName: string = 'ascii-elomr'
 ): Array<{ addresses: string[]; center: [number, number]; bounds: GeographicBounds }> {
   const system = new H3SyllableSystem(configName);
   const coords = addresses.map(addr => {

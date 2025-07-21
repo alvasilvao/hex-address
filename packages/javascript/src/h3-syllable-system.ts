@@ -56,7 +56,7 @@ const PHONETIC_CONFUSIONS: Record<string, string[]> = {
 /**
  * H3 Syllable Address System
  * 
- * Converts GPS coordinates to memorable syllable addresses using H3 Level 15 cells.
+ * Converts GPS coordinates to memorable syllable addresses using H3 Level 14 cells.
  * 
  * Standard Process:
  * 1. GPS Coordinates → H3 Cell ID (H3 hexagonal identifier)
@@ -76,7 +76,7 @@ export class H3SyllableSystem {
   private readonly vowelCount: number;
   private readonly totalSyllables: number;
 
-  constructor(configName: string = 'ascii-dnqqwn') {
+  constructor(configName: string = 'ascii-elomr') {
     this.configName = configName;
     this.config = getConfig(configName);
     
@@ -703,7 +703,7 @@ export class H3SyllableSystem {
   getSystemInfo(): SystemInfo {
     const totalSyllables = this.totalSyllables;
     const addressSpace = totalSyllables ** this.config.address_length;
-    const h3Target = 122 * (7 ** 15); // H3 Level 15 cells: 122 base cells × 7^15 hierarchical positions
+    const h3Target = 122 * (7 ** 14); // H3 Level 14 cells: 122 base cells × 7^14 hierarchical positions
 
     return {
       h3Resolution: this.config.h3_resolution,
@@ -767,7 +767,7 @@ export class H3SyllableSystem {
         configName = 'ascii-fqwclj'; // No L (avoid L/R confusion)
         break;
       default:
-        configName = 'ascii-dnqqwn'; // Default to international config (16 consonants, 5 vowels, 8 syllables)
+        configName = 'ascii-elomr'; // Default to international config (11 consonants, 5 vowels, 8 syllables)
     }
     
     return new H3SyllableSystem(configName);
